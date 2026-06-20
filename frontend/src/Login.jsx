@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
 } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
 
@@ -11,21 +10,62 @@ const inputClass =
   "w-full px-4 py-3 mb-3 rounded-2xl bg-[#f8f1e6] border border-[#ece0c8] " +
   "text-[#3d3220] placeholder:text-[#b6a888] focus:outline-none focus:border-[#caa24e]";
 
+// Turn raw Firebase error codes into plain, friendly messages.
+// Returns "" for things the user did on purpose (like closing the popup).
+function friendlyAuthError(err) {
+  const code = (err && err.code) || "";
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "This email already has an account. Try signing in instead.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/missing-email":
+      return "Please enter your email address.";
+    case "auth/missing-password":
+      return "Please enter your password.";
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+    case "auth/user-not-found":
+      return "Wrong email or password.";
+    case "auth/weak-password":
+      return "Password must be at least 6 characters.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Please wait a moment and try again.";
+    case "auth/network-request-failed":
+      return "Network error. Check your connection and try again.";
+    case "auth/popup-blocked":
+      return "Your browser blocked the sign-in popup. Please allow popups and try again.";
+    case "auth/unauthorized-domain":
+      return "This site isn't authorized for sign-in yet.";
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return ""; // user cancelled - don't show an error
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    getRedirectResult(auth).catch((e) => setError(e.message));
-  }, []);
+  // Clear any error the moment the user starts typing again
+  function handleEmail(e) {
+    setEmail(e.target.value);
+    if (error) setError("");
+  }
+  function handlePassword(e) {
+    setPassword(e.target.value);
+    if (error) setError("");
+  }
 
   async function handleSignUp() {
     setError("");
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (e) {
-      setError(e.message);
+      setError(friendlyAuthError(e));
     }
   }
 
@@ -34,16 +74,17 @@ function Login() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e) {
-      setError(e.message);
+      setError(friendlyAuthError(e));
     }
   }
 
   async function handleGoogle() {
     setError("");
     try {
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
     } catch (e) {
-      setError(e.message);
+      const msg = friendlyAuthError(e);
+      if (msg) setError(msg);
     }
   }
 
@@ -61,14 +102,14 @@ function Login() {
           className={inputClass}
           placeholder="Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={handleEmail}
         />
         <input
           className={inputClass}
           type="password"
           placeholder="Password (at least 6 characters)"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={handlePassword}
         />
 
         <div className="flex gap-3 mt-1">
