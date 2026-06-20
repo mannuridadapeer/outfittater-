@@ -99,7 +99,7 @@ function ResultCard({ result, imageDataUrl }) {
         onClick={() =>
           shareResult({ node: cardRef.current, result, imageDataUrl })
         }
-        className="mt-4 w-full py-3.5 rounded-2xl font-semibold text-white bg-gradient-to-r from-[#caa24e] to-[#a9823a] shadow-[0_14px_28px_-10px_rgba(169,130,58,0.8)]"
+        className="btn-gold mt-4 w-full py-3.5 rounded-2xl font-semibold"
       >
         Share my result
       </button>

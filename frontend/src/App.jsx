@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
+import Welcome from "./Welcome";
 import Login from "./Login";
 import Rate from "./Rate";
 import History from "./History";
@@ -8,7 +9,8 @@ import History from "./History";
 function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
-  const [screen, setScreen] = useState("rate");
+  const [showLogin, setShowLogin] = useState(false); // welcome -> login
+  const [screen, setScreen] = useState("rate"); // "rate" or "history"
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -18,12 +20,23 @@ function App() {
     return unsubscribe;
   }, []);
 
+  // First load: checking whether you're already signed in
   if (!authReady) {
-    return <p className="text-center text-[#9b8a68] pt-20">Loading...</p>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="spinner"></div>
+        <p className="text-[#9b8a68] text-sm">Loading…</p>
+      </div>
+    );
   }
 
+  // Not signed in -> welcome screen first, then the login form
   if (!user) {
-    return <Login />;
+    return showLogin ? (
+      <Login onBack={() => setShowLogin(false)} />
+    ) : (
+      <Welcome onGetStarted={() => setShowLogin(true)} />
+    );
   }
 
   const tabClass = (active) =>
@@ -33,7 +46,7 @@ function App() {
       : "text-[#9b8a68]");
 
   return (
-    <div className="max-w-md mx-auto px-5 pb-24">
+    <div className="max-w-md mx-auto px-5 pb-16">
       <header className="flex items-center justify-between py-6">
         <div className="text-xl font-extrabold text-[#a9823a]">
           👗 Rate My Outfit
@@ -44,7 +57,7 @@ function App() {
           </span>
           <button
             onClick={() => signOut(auth)}
-            className="text-sm text-[#9b8a68] hover:text-[#3d3220] px-2 py-1"
+            className="text-sm text-[#9b8a68] hover:text-[#3d3220] px-2 py-1 rounded-lg transition"
           >
             Sign out
           </button>
@@ -63,9 +76,18 @@ function App() {
         </button>
       </nav>
 
-      <main>
-        {screen === "rate" ? <Rate user={user} /> : <History user={user} />}
+      {/* key changes on tab switch -> re-triggers the fade/slide animation */}
+      <main key={screen} className="fade-in">
+        {screen === "rate" ? (
+          <Rate user={user} />
+        ) : (
+          <History user={user} onRate={() => setScreen("rate")} />
+        )}
       </main>
+
+      <footer className="text-center text-xs text-[#b6a888] mt-12">
+        Rate My Outfit · made with ✨ and AI
+      </footer>
     </div>
   );
 }

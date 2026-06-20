@@ -82,6 +82,7 @@ function Rate({ user }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("Analyzing your fit…");
   const [streak, setStreak] = useState(0);
   const [todayRating, setTodayRating] = useState(null);
 
@@ -131,6 +132,12 @@ function Rate({ user }) {
     setLoading(true);
     setResult(null);
     setError("");
+    setLoadingMsg("Analyzing your fit…");
+
+    // If the free backend is asleep, the first request is slow - reassure the user
+    const coldStartTimer = setTimeout(() => {
+      setLoadingMsg("Waking up the stylist… this can take a moment the first time ☕");
+    }, 6000);
 
     try {
       const imageForApi = await resizeToJpeg(image, 1024, 0.85);
@@ -144,7 +151,6 @@ function Rate({ user }) {
 
       if (data.error) {
         setError(data.error);
-        setLoading(false);
         return;
       }
 
@@ -162,10 +168,11 @@ function Rate({ user }) {
 
       await loadStreak();
     } catch (err) {
-      setError("Could not reach the backend. Is it running?");
+      setError("Could not reach the backend. Please try again in a moment.");
+    } finally {
+      clearTimeout(coldStartTimer);
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
@@ -184,14 +191,18 @@ function Rate({ user }) {
       <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
         <input type="file" accept="image/*" onChange={handleFileChange} hidden />
         {image ? (
-          <img
-            src={image}
-            alt="your outfit"
-            className="w-full max-h-[360px] object-contain rounded-3xl"
-          />
+          <>
+            <img
+              src={image}
+              alt="your outfit"
+              className="w-full max-h-[360px] object-contain rounded-3xl"
+            />
+            <p className="text-xs text-[#9b8a68] mt-3">Tap to change photo</p>
+          </>
         ) : (
           <div className="text-[#9b8a68] font-medium py-12">
-            📷 Tap to choose a photo
+            <div className="text-4xl mb-2">📷</div>
+            Tap to choose a photo
           </div>
         )}
       </label>
@@ -199,10 +210,19 @@ function Rate({ user }) {
       <button
         onClick={handleRate}
         disabled={loading}
-        className="w-full py-4 rounded-2xl font-semibold text-white text-base bg-gradient-to-r from-[#caa24e] to-[#a9823a] shadow-[0_14px_28px_-10px_rgba(169,130,58,0.8)] disabled:opacity-60"
+        className="btn-gold w-full py-4 rounded-2xl font-semibold text-base"
       >
-        {loading ? "Rating..." : "Rate My Outfit"}
+        {loading ? "Analyzing…" : "Rate My Outfit"}
       </button>
+
+      {loading && (
+        <div className="fade-in glass-card rounded-[28px] p-6 mt-5 flex flex-col items-center gap-3">
+          <div className="spinner"></div>
+          <p className="pulse text-[#3d3220] font-medium text-center">
+            {loadingMsg}
+          </p>
+        </div>
+      )}
 
       {error && (
         <p className="mt-3 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5">
@@ -210,7 +230,7 @@ function Rate({ user }) {
         </p>
       )}
 
-      {result && <ResultCard result={result} imageDataUrl={image} />}
+      {result && !loading && <ResultCard result={result} imageDataUrl={image} />}
     </div>
   );
 }

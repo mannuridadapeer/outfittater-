@@ -8,7 +8,7 @@ import { auth, googleProvider } from "./firebase";
 
 const inputClass =
   "w-full px-4 py-3 mb-3 rounded-2xl bg-[#f8f1e6] border border-[#ece0c8] " +
-  "text-[#3d3220] placeholder:text-[#b6a888] focus:outline-none focus:border-[#caa24e]";
+  "text-[#3d3220] placeholder:text-[#b6a888] focus:outline-none focus:border-[#caa24e] transition";
 
 // Turn raw Firebase error codes into plain, friendly messages.
 // Returns "" for things the user did on purpose (like closing the popup).
@@ -45,7 +45,7 @@ function friendlyAuthError(err) {
   }
 }
 
-function Login() {
+function Login({ onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -90,13 +90,24 @@ function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-5">
-      <div className="fade-in w-full max-w-sm glass-card rounded-[32px] p-8 text-center">
-        <h1 className="text-2xl font-extrabold text-[#3d3220]">
-          👗 Rate My Outfit
-        </h1>
-        <p className="text-sm text-[#9b8a68] mt-2 mb-7">
-          Sign in to get your fits scored
-        </p>
+      <div className="fade-in w-full max-w-sm glass-card rounded-[32px] p-8">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-sm text-[#9b8a68] hover:text-[#3d3220] mb-3 transition"
+          >
+            ← Back
+          </button>
+        )}
+
+        <div className="text-center">
+          <h1 className="text-2xl font-extrabold text-[#3d3220]">
+            👗 Rate My Outfit
+          </h1>
+          <p className="text-sm text-[#9b8a68] mt-2 mb-7">
+            Sign in to get your fits scored
+          </p>
+        </div>
 
         <input
           className={inputClass}
@@ -113,16 +124,10 @@ function Login() {
         />
 
         <div className="flex gap-3 mt-1">
-          <button
-            onClick={handleSignIn}
-            className="flex-1 py-3 rounded-2xl font-semibold text-white bg-gradient-to-r from-[#caa24e] to-[#a9823a] shadow-[0_10px_20px_-8px_rgba(169,130,58,0.7)]"
-          >
+          <button onClick={handleSignIn} className="btn-gold flex-1 py-3 rounded-2xl font-semibold">
             Sign in
           </button>
-          <button
-            onClick={handleSignUp}
-            className="flex-1 py-3 rounded-2xl font-semibold text-[#a9823a] bg-[#f4ead9]"
-          >
+          <button onClick={handleSignUp} className="btn-soft flex-1 py-3 rounded-2xl font-semibold">
             Sign up
           </button>
         </div>
@@ -133,15 +138,12 @@ function Login() {
           <span className="flex-1 h-px bg-[#ece0c8]"></span>
         </div>
 
-        <button
-          onClick={handleGoogle}
-          className="w-full py-3 rounded-2xl font-semibold text-[#3d3220] bg-[#fffdf9] border border-[#ece0c8]"
-        >
+        <button onClick={handleGoogle} className="btn-outline w-full py-3 rounded-2xl font-semibold">
           Continue with Google
         </button>
 
         {error && (
-          <p className="mt-4 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5">
+          <p className="mt-4 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5 text-center">
             {error}
           </p>
         )}

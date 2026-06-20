@@ -11,8 +11,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Soft, STATIC gold + rose glows behind everything, so the frosted-glass
-     cards have something pretty to blur over. Nothing here moves. */
+  /* Soft, STATIC gold + rose glows behind everything */
   body::before {
     content: "";
     position: fixed;
@@ -25,7 +24,7 @@
   }
 }
 
-/* Reusable frosted-glass surfaces */
+/* Reusable frosted-glass surfaces + buttons */
 @layer components {
   .glass-card {
     background: rgba(255, 253, 249, 0.6);
@@ -39,19 +38,64 @@
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
   }
+
+  .btn-gold {
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    color: #fff;
+    background: linear-gradient(135deg, #caa24e, #a9823a);
+    box-shadow: 0 14px 28px -10px rgba(169, 130, 58, 0.8);
+    transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  }
+  .btn-gold:hover { filter: brightness(1.05); box-shadow: 0 18px 34px -10px rgba(169, 130, 58, 0.9); }
+  .btn-gold:active { transform: translateY(1px) scale(0.99); }
+  .btn-gold:disabled { opacity: 0.6; cursor: default; box-shadow: none; }
+
+  .btn-soft {
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    color: #a9823a;
+    background: #f4ead9;
+    transition: background 0.2s ease, transform 0.12s ease;
+  }
+  .btn-soft:hover { background: #ecdfc8; }
+  .btn-soft:active { transform: translateY(1px); }
+
+  .btn-outline {
+    cursor: pointer;
+    font-family: inherit;
+    color: #3d3220;
+    background: #fffdf9;
+    border: 1px solid #ece0c8;
+    transition: background 0.2s ease, transform 0.12s ease, border-color 0.2s ease;
+  }
+  .btn-outline:hover { border-color: #caa24e; background: #fdfbf5; }
+  .btn-outline:active { transform: translateY(1px); }
 }
 
-/* Gentle fade-in used on cards and results */
+/* Gentle fade/slide-in for cards and screen changes */
 @keyframes luxe-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
-.fade-in {
-  animation: luxe-fade-in 0.5s ease-out both;
+.fade-in { animation: luxe-fade-in 0.45s ease-out both; }
+
+/* Loading spinner */
+@keyframes luxe-spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid #ece0c8;
+  border-top-color: #caa24e;
+  animation: luxe-spin 0.8s linear infinite;
 }
+
+/* Soft pulsing text */
+@keyframes luxe-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.pulse { animation: luxe-pulse 1.4s ease-in-out infinite; }

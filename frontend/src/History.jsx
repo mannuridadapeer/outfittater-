@@ -10,7 +10,7 @@ function formatDate(r) {
     : r.dateKey;
 }
 
-function History({ user }) {
+function History({ user, onRate }) {
   const [ratings, setRatings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null); // a tapped rating, or null
@@ -39,10 +39,10 @@ function History({ user }) {
   // ---- Detail view: reopen a full saved result ----
   if (selected) {
     return (
-      <div>
+      <div className="fade-in">
         <button
           onClick={() => setSelected(null)}
-          className="mb-4 text-sm font-semibold text-[#a9823a] bg-[#f4ead9] rounded-full px-4 py-2"
+          className="btn-soft mb-4 text-sm font-semibold rounded-full px-4 py-2"
         >
           ← Back to history
         </button>
@@ -65,16 +65,36 @@ function History({ user }) {
     );
   }
 
-  // ---- List view ----
-  if (loading)
-    return <p className="text-center text-[#9b8a68] pt-16">Loading history...</p>;
-  if (ratings.length === 0)
+  // ---- Loading state ----
+  if (loading) {
     return (
-      <p className="text-center text-[#9b8a68] pt-16">
-        No ratings yet. Go rate an outfit!
-      </p>
+      <div className="flex flex-col items-center justify-center gap-3 pt-16">
+        <div className="spinner"></div>
+        <p className="text-[#9b8a68] text-sm pulse">Loading your history…</p>
+      </div>
     );
+  }
 
+  // ---- Empty state ----
+  if (ratings.length === 0) {
+    return (
+      <div className="fade-in glass-card rounded-[32px] p-8 text-center mt-2">
+        <div className="text-5xl mb-3">👗</div>
+        <h2 className="text-xl font-bold text-[#3d3220]">No fits rated yet</h2>
+        <p className="text-sm text-[#9b8a68] mt-2 mb-6">
+          Upload your first outfit and let the AI score your look!
+        </p>
+        <button
+          onClick={onRate}
+          className="btn-gold px-6 py-3 rounded-2xl font-semibold"
+        >
+          Rate your first outfit
+        </button>
+      </div>
+    );
+  }
+
+  // ---- List view ----
   return (
     <div>
       <h1 className="text-2xl font-extrabold text-[#3d3220] mb-4">My History</h1>
@@ -100,10 +120,10 @@ function History({ user }) {
             </div>
             <button
               onClick={(e) => {
-                e.stopPropagation(); // don't open the detail view
+                e.stopPropagation();
                 shareResult({ result: r, imageDataUrl: r.thumbnail });
               }}
-              className="shrink-0 text-sm font-semibold text-[#a9823a] bg-[#f4ead9] rounded-full px-4 py-2"
+              className="btn-soft shrink-0 text-sm font-semibold rounded-full px-4 py-2"
             >
               Share
             </button>
