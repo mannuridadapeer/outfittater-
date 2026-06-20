@@ -129,11 +129,13 @@ app.post("/rate", async (req, res) => {
         { inlineData: { mimeType: mimeType, data: base64Data } },
       ],
       // Turn on JSON mode and hand Gemini the schema above.
-      // Low temperature = more deterministic = more consistent scores.
+      // temperature 0 + a fixed seed = as deterministic as possible, so the
+      // same photo gets the same score on repeat ratings.
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        temperature: 0.2,
+        temperature: 0,
+        seed: 42,
       },
     });
 

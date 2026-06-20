@@ -127,7 +127,7 @@ function Login({ onBack }) {
           <button onClick={handleSignIn} className="btn-gold flex-1 py-3 rounded-2xl font-semibold">
             Sign in
           </button>
-          <button onClick={handleSignUp} className="btn-soft flex-1 py-3 rounded-2xl font-semibold">
+          <button onClick={handleSignUp} className="btn-gold flex-1 py-3 rounded-2xl font-semibold">
             Sign up
           </button>
         </div>
