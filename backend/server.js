@@ -9,6 +9,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
+import crypto from "node:crypto";
 
 // Load the secret API key from the .env file
 dotenv.config();
@@ -20,6 +21,10 @@ app.use(express.json({ limit: "10mb" }));
 // Connect to Gemini using your secret key
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+// Remember each photo's rating so the SAME photo always returns the SAME result.
+// Keyed by a hash of the image data. (In-memory: clears if the server restarts.)
+const ratingCache = new Map();
+
 // This describes the EXACT shape we want Gemini to answer in.
 // Because we hand this to Gemini's JSON mode, it is forced to return
 // data in this structure - no stray asterisks or messy paragraphs.
@@ -27,8 +32,8 @@ const responseSchema = {
   type: Type.OBJECT,
   properties: {
     overallScore: {
-      type: Type.NUMBER,
-      description: "Overall outfit score from 0 to 10",
+      type: Type.INTEGER,
+      description: "Overall outfit score as a whole number from 0 to 10",
     },
     items: {
       type: Type.ARRAY,
@@ -41,8 +46,8 @@ const responseSchema = {
             description: "One of: Top, Bottom, Shoes, Accessories",
           },
           score: {
-            type: Type.NUMBER,
-            description: "Score from 0 to 10 (use 0 if this item is not visible)",
+            type: Type.INTEGER,
+            description: "Whole-number score from 0 to 10 (use 0 if this item is not visible)",
           },
           critique: {
             type: Type.STRING,
@@ -105,6 +110,12 @@ app.post("/rate", async (req, res) => {
     const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
     const mimeType = allowedTypes.includes(rawMime) ? rawMime : "image/jpeg";
 
+    // Same photo -> same result. Look it up by a hash of the image data.
+    const hash = crypto.createHash("sha256").update(base64Data).digest("hex");
+    if (ratingCache.has(hash)) {
+      return res.json(ratingCache.get(hash));
+    }
+
     const prompt =
       "You are a strict, consistent fashion judge. Rate the outfit in the photo. " +
       "Apply this EXACT scoring rubric every single time, so the same outfit always " +
@@ -120,7 +131,8 @@ app.post("/rate", async (req, res) => {
       "a single short line of critique. If a category is not visible in the photo, give it " +
       "a score of 0 and say it is not visible. Judge only the clothing - ignore the photo's " +
       "lighting, background, and image quality. Finally give 2 to 3 short, specific tips to " +
-      "level up the outfit. Do not use any markdown, asterisks, or bullet characters.";
+      "level up the outfit. Use whole numbers only for every score (no decimals). " +
+      "Do not use any markdown, asterisks, or bullet characters.";
 
     const response = await generateWithRetry({
       model: "gemini-2.5-flash",
@@ -141,6 +153,13 @@ app.post("/rate", async (req, res) => {
 
     // Gemini returns the JSON as a string; turn it into a real object
     const data = JSON.parse(response.text);
+
+    // Remember this result so the same photo returns the same score next time
+    ratingCache.set(hash, data);
+    if (ratingCache.size > 500) {
+      ratingCache.delete(ratingCache.keys().next().value);
+    }
+
     res.json(data);
   } catch (err) {
     console.error(err);
