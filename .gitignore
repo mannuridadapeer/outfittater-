@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Secrets - never commit these
+.env
+
+# Build output
+dist/
+
+# Misc
+.DS_Store
+*.log

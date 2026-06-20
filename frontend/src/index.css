@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Soft & luxe base styles */
+@layer base {
+  body {
+    font-family: "Poppins", system-ui, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    color: #3d3220;
+    background: linear-gradient(to bottom, #f7f0e6 0%, #efe5d6 100%);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Soft, STATIC gold + rose glows behind everything, so the frosted-glass
+     cards have something pretty to blur over. Nothing here moves. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(440px circle at 15% 10%, rgba(232, 185, 106, 0.55), transparent 60%),
+      radial-gradient(460px circle at 85% 90%, rgba(231, 155, 180, 0.45), transparent 60%);
+  }
+}
+
+/* Reusable frosted-glass surfaces */
+@layer components {
+  .glass-card {
+    background: rgba(255, 253, 249, 0.6);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 30px 60px -20px rgba(150, 120, 70, 0.35);
+  }
+  .glass-soft {
+    background: rgba(255, 253, 249, 0.5);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}
+
+/* Gentle fade-in used on cards and results */
+@keyframes luxe-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-in {
+  animation: luxe-fade-in 0.5s ease-out both;
+}
