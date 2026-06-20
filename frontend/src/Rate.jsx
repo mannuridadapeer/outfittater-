@@ -111,6 +111,14 @@ function Rate({ user }) {
     }
   }
 
+  // Clear everything and go back to a fresh upload
+  function reset() {
+    setImage(null);
+    setResult(null);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function handleFileChange(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -188,49 +196,76 @@ function Rate({ user }) {
         )}
       </div>
 
-      <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
-        <input type="file" accept="image/*" onChange={handleFileChange} hidden />
-        {image ? (
-          <>
-            <img
-              src={image}
-              alt="your outfit"
-              className="w-full max-h-[360px] object-contain rounded-3xl"
-            />
-            <p className="text-xs text-[#9b8a68] mt-3">Tap to change photo</p>
-          </>
-        ) : (
-          <div className="text-[#9b8a68] font-medium py-12">
-            <div className="text-4xl mb-2">📷</div>
-            Tap to choose a photo
-          </div>
-        )}
-      </label>
+      {/* Before a result: the uploader + rate button */}
+      {!result && (
+        <>
+          <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
+            <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+            {image ? (
+              <>
+                <img
+                  src={image}
+                  alt="your outfit"
+                  className="w-full max-h-[360px] object-contain rounded-3xl"
+                />
+                <p className="text-xs text-[#9b8a68] mt-3">Tap to change photo</p>
+              </>
+            ) : (
+              <div className="text-[#9b8a68] font-medium py-12">
+                <div className="text-4xl mb-2">📷</div>
+                Tap to choose a photo
+              </div>
+            )}
+          </label>
 
-      <button
-        onClick={handleRate}
-        disabled={loading}
-        className="btn-gold w-full py-4 rounded-2xl font-semibold text-base"
-      >
-        {loading ? "Analyzing…" : "Rate My Outfit"}
-      </button>
+          <button
+            onClick={handleRate}
+            disabled={loading}
+            className="btn-gold w-full py-4 rounded-2xl font-semibold text-base"
+          >
+            {loading ? "Analyzing…" : "Rate My Outfit"}
+          </button>
 
-      {loading && (
-        <div className="fade-in glass-card rounded-[28px] p-6 mt-5 flex flex-col items-center gap-3">
-          <div className="spinner"></div>
-          <p className="pulse text-[#3d3220] font-medium text-center">
-            {loadingMsg}
-          </p>
+          {loading && (
+            <div className="fade-in glass-card rounded-[28px] p-6 mt-5 flex flex-col items-center gap-3">
+              <div className="spinner"></div>
+              <p className="pulse text-[#3d3220] font-medium text-center">
+                {loadingMsg}
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <p className="mt-3 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5">
+              {error}
+            </p>
+          )}
+        </>
+      )}
+
+      {/* After a result: the photo, the score card, and a way to start over */}
+      {result && !loading && (
+        <div className="fade-in">
+          {image && (
+            <div className="glass-card rounded-[32px] p-4 mb-2">
+              <img
+                src={image}
+                alt="your outfit"
+                className="w-full max-h-[360px] object-contain rounded-3xl"
+              />
+            </div>
+          )}
+
+          <ResultCard result={result} imageDataUrl={image} />
+
+          <button
+            onClick={reset}
+            className="btn-soft w-full py-3.5 rounded-2xl font-semibold mt-4"
+          >
+            Rate another outfit
+          </button>
         </div>
       )}
-
-      {error && (
-        <p className="mt-3 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5">
-          {error}
-        </p>
-      )}
-
-      {result && !loading && <ResultCard result={result} imageDataUrl={image} />}
     </div>
   );
 }
