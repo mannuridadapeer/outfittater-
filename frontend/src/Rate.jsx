@@ -6,6 +6,9 @@ import {
   orderBy,
   getDocs,
   serverTimestamp,
+  doc,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import ResultCard from "./ResultCard";
@@ -22,6 +25,9 @@ const PERSONAS = [
   { key: "Brutally Honest", label: "🔪 Brutal" },
   { key: "Runway Critic", label: "🎩 Critic" },
 ];
+
+// How many ratings a free user gets per day
+const FREE_DAILY_LIMIT = 3;
 
 function todayKey() {
   const d = new Date();
@@ -86,7 +92,7 @@ function resizeToJpeg(dataUrl, maxSize, quality) {
   });
 }
 
-function Rate({ user }) {
+function Rate({ user, onUpgrade }) {
   const [image, setImage] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -96,6 +102,8 @@ function Rate({ user }) {
   const [todayRating, setTodayRating] = useState(null);
   const [occasion, setOccasion] = useState("Casual");
   const [persona, setPersona] = useState("Honest");
+  const [plan, setPlan] = useState("free");
+  const [usedToday, setUsedToday] = useState(0);
 
   // Tracks which occasions we've already saved for the CURRENT photo,
   // so switching occasions doesn't create duplicate history entries.
@@ -103,7 +111,20 @@ function Rate({ user }) {
 
   useEffect(() => {
     loadStreak();
+    loadProfile();
   }, []);
+
+  async function loadProfile() {
+    try {
+      const ref = doc(db, "users", user.uid, "meta", "profile");
+      const snap = await getDoc(ref);
+      const data = snap.exists() ? snap.data() : {};
+      setPlan(data.plan === "pro" ? "pro" : "free");
+      setUsedToday(data.usageDate === todayKey() ? data.usageCount || 0 : 0);
+    } catch (e) {
+      console.log("Could not load plan:", e);
+    }
+  }
 
   async function loadStreak() {
     try {
@@ -153,6 +174,13 @@ function Rate({ user }) {
   async function rateFor(forOccasion) {
     if (!image || loading) return;
 
+    const isNew = !savedOccasions.current.has(forOccasion);
+    // Free users get a limited number of new ratings per day
+    if (isNew && plan !== "pro" && usedToday >= FREE_DAILY_LIMIT) {
+      if (onUpgrade) onUpgrade();
+      return;
+    }
+
     setOccasion(forOccasion);
     setLoading(true);
     setResult(null);
@@ -195,6 +223,19 @@ function Rate({ user }) {
           createdAt: serverTimestamp(),
         });
         await loadStreak();
+
+        // Count this rating toward today's free usage
+        const newCount = usedToday + 1;
+        setUsedToday(newCount);
+        try {
+          await setDoc(
+            doc(db, "users", user.uid, "meta", "profile"),
+            { plan, usageDate: todayKey(), usageCount: newCount },
+            { merge: true }
+          );
+        } catch (e) {
+          console.log("Could not save usage:", e);
+        }
       }
     } catch (err) {
       setError("Could not reach the backend. Please try again in a moment.");
@@ -239,6 +280,24 @@ function Rate({ user }) {
           </div>
         )}
       </div>
+
+      {plan === "pro" ? (
+        <div className="mb-4 px-4 py-2.5 rounded-2xl text-sm font-semibold bg-[#f4ead9] text-[#a9823a] text-center">
+          ✨ Pro · unlimited ratings
+        </div>
+      ) : (
+        <div className="mb-4 flex items-center justify-between bg-[#f8f1e6] rounded-2xl px-4 py-2.5">
+          <span className="text-sm text-[#9b8a68]">
+            {Math.max(0, FREE_DAILY_LIMIT - usedToday)} free ratings left today
+          </span>
+          <button
+            onClick={onUpgrade}
+            className="text-sm font-semibold text-[#a9823a] hover:underline"
+          >
+            ✨ Upgrade
+          </button>
+        </div>
+      )}
 
       {/* CASE A: choosing occasion + uploading (before any result) */}
       {!result && !loading && (

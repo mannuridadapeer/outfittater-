@@ -6,12 +6,14 @@ import Login from "./Login";
 import Rate from "./Rate";
 import History from "./History";
 import Stats from "./Stats";
+import Paywall from "./Paywall";
 
 function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [showLogin, setShowLogin] = useState(false); // welcome -> login
   const [screen, setScreen] = useState("rate"); // "rate" or "history"
+  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -85,12 +87,16 @@ function App() {
 
       {/* key changes on tab switch -> re-triggers the fade/slide animation */}
       <main key={screen} className="fade-in">
-        {screen === "rate" && <Rate user={user} />}
+        {screen === "rate" && (
+          <Rate user={user} onUpgrade={() => setShowPaywall(true)} />
+        )}
         {screen === "history" && (
           <History user={user} onRate={() => setScreen("rate")} />
         )}
         {screen === "stats" && <Stats user={user} />}
       </main>
+
+      {showPaywall && <Paywall onClose={() => setShowPaywall(false)} />}
 
       <footer className="text-center text-xs text-[#b6a888] mt-12">
         Rate My Outfit · made with ✨ and AI
