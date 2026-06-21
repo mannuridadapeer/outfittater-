@@ -96,10 +96,14 @@ app.get("/", (req, res) => {
 // --- Main route: rate an outfit ---
 app.post("/rate", async (req, res) => {
   try {
-    const { image } = req.body;
+    const { image, occasion } = req.body;
     if (!image) {
       return res.status(400).json({ error: "No image was sent." });
     }
+
+    // Only allow known occasions; default to a neutral everyday look
+    const allowedOccasions = ["Casual", "Work", "Date", "Party", "Gym", "Formal"];
+    const safeOccasion = allowedOccasions.includes(occasion) ? occasion : "Casual";
 
     // Split "data:image/jpeg;base64,XXXX" into the type and the data
     const rawMime = image.substring(image.indexOf(":") + 1, image.indexOf(";"));
@@ -110,14 +114,20 @@ app.post("/rate", async (req, res) => {
     const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
     const mimeType = allowedTypes.includes(rawMime) ? rawMime : "image/jpeg";
 
-    // Same photo -> same result. Look it up by a hash of the image data.
-    const hash = crypto.createHash("sha256").update(base64Data).digest("hex");
+    // Same photo + same occasion -> same result. Cache key includes the occasion
+    // so the same photo can score differently for, say, "Gym" vs "Date".
+    const hash = crypto
+      .createHash("sha256")
+      .update(safeOccasion + "|" + base64Data)
+      .digest("hex");
     if (ratingCache.has(hash)) {
       return res.json(ratingCache.get(hash));
     }
 
     const prompt =
-      "You are a strict, consistent fashion judge. Rate the outfit in the photo. " +
+      `You are a strict, consistent fashion judge. Rate the outfit in the photo for this occasion: ${safeOccasion}. ` +
+      `Judge how appropriate, well-suited, and stylish the outfit is specifically for a ${safeOccasion} setting ` +
+      "(for example, judge gym wear as gym wear and formal wear as formal wear), and let that strongly shape the scores and tips. " +
       "Apply this EXACT scoring rubric every single time, so the same outfit always " +
       "receives nearly the same score:\n" +
       "9-10 = exceptional: cohesive, well-fitted, stylish, clearly intentional.\n" +

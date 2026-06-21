@@ -23,12 +23,17 @@ export function itemEmoji(name) {
 // The reusable score card: gold ring + verdict, breakdown pills, tips,
 // and a Share button. Used both for a fresh rating and a reopened history item.
 // `imageDataUrl` is only used as a fallback if the card snapshot fails.
-function ResultCard({ result, imageDataUrl }) {
+function ResultCard({ result, imageDataUrl, occasion }) {
   const cardRef = useRef(null);
 
   return (
     <div className="fade-in mt-5">
       <div ref={cardRef} className="glass-card rounded-[32px] p-6">
+        {occasion && (
+          <div className="inline-block mb-4 px-3 py-1 rounded-full text-xs font-semibold bg-[#f4ead9] text-[#a9823a]">
+            For {occasion}
+          </div>
+        )}
         <div className="flex items-center gap-5">
           <div
             className="shrink-0 w-[120px] h-[120px] rounded-full flex items-center justify-center"

@@ -14,6 +14,8 @@ const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `http://${window.location.hostname}:3000`;
 
+const OCCASIONS = ["Casual", "Work", "Date", "Party", "Gym", "Formal"];
+
 function todayKey() {
   const d = new Date();
   return (
@@ -85,6 +87,7 @@ function Rate({ user }) {
   const [loadingMsg, setLoadingMsg] = useState("Analyzing your fit…");
   const [streak, setStreak] = useState(0);
   const [todayRating, setTodayRating] = useState(null);
+  const [occasion, setOccasion] = useState("Casual");
 
   useEffect(() => {
     loadStreak();
@@ -153,7 +156,7 @@ function Rate({ user }) {
       const response = await fetch(BACKEND_URL + "/rate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageForApi }),
+        body: JSON.stringify({ image: imageForApi, occasion }),
       });
       const data = await response.json();
 
@@ -170,6 +173,7 @@ function Rate({ user }) {
         items: data.items,
         tips: data.tips,
         thumbnail: thumbnail,
+        occasion: occasion,
         dateKey: todayKey(),
         createdAt: serverTimestamp(),
       });
@@ -199,6 +203,26 @@ function Rate({ user }) {
       {/* Before a result: the uploader + rate button */}
       {!result && (
         <>
+          <p className="text-sm font-semibold text-[#3d3220] mb-2">
+            What's the occasion?
+          </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {OCCASIONS.map((o) => (
+              <button
+                key={o}
+                onClick={() => setOccasion(o)}
+                className={
+                  "px-4 py-2 rounded-full text-sm font-semibold transition " +
+                  (occasion === o
+                    ? "btn-gold"
+                    : "bg-[#f8f1e6] text-[#9b8a68] hover:text-[#a9823a]")
+                }
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+
           <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
             <input type="file" accept="image/*" onChange={handleFileChange} hidden />
             {image ? (
@@ -256,7 +280,7 @@ function Rate({ user }) {
             </div>
           )}
 
-          <ResultCard result={result} imageDataUrl={image} />
+          <ResultCard result={result} imageDataUrl={image} occasion={occasion} />
 
           <button
             onClick={reset}

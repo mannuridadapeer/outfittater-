@@ -60,7 +60,11 @@ function History({ user, onRate }) {
           </div>
         )}
 
-        <ResultCard result={selected} imageDataUrl={selected.thumbnail} />
+        <ResultCard
+          result={selected}
+          imageDataUrl={selected.thumbnail}
+          occasion={selected.occasion}
+        />
       </div>
     );
   }
@@ -117,6 +121,11 @@ function History({ user, onRate }) {
                 {r.overallScore}/10
               </div>
               <div className="text-sm text-[#9b8a68]">{formatDate(r)}</div>
+              {r.occasion && (
+                <div className="text-xs font-semibold text-[#a9823a] mt-0.5">
+                  For {r.occasion}
+                </div>
+              )}
             </div>
             <button
               onClick={(e) => {
