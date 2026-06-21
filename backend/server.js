@@ -23,6 +23,7 @@ const corsOptions = {
     if (!origin) return cb(null, true); // non-browser tools / same-origin
     const ok =
       /\.vercel\.app$/.test(origin) ||
+      /^https:\/\/(www\.)?slayrate\.com$/.test(origin) ||
       /^http:\/\/localhost(:\d+)?$/.test(origin);
     cb(null, ok);
   },
