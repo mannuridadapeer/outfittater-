@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection,
   addDoc,
@@ -89,6 +89,10 @@ function Rate({ user }) {
   const [todayRating, setTodayRating] = useState(null);
   const [occasion, setOccasion] = useState("Casual");
 
+  // Tracks which occasions we've already saved for the CURRENT photo,
+  // so switching occasions doesn't create duplicate history entries.
+  const savedOccasions = useRef(new Set());
+
   useEffect(() => {
     loadStreak();
   }, []);
@@ -119,6 +123,7 @@ function Rate({ user }) {
     setImage(null);
     setResult(null);
     setError("");
+    savedOccasions.current = new Set();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -130,22 +135,22 @@ function Rate({ user }) {
       setImage(reader.result);
       setResult(null);
       setError("");
+      savedOccasions.current = new Set(); // new photo -> fresh
     };
     reader.readAsDataURL(file);
   }
 
-  async function handleRate() {
-    if (!image) {
-      alert("Please upload a photo first.");
-      return;
-    }
+  // Rate the current photo for a given occasion. Saves to history once
+  // per occasion (so switching back and forth doesn't pile up duplicates).
+  async function rateFor(forOccasion) {
+    if (!image || loading) return;
 
+    setOccasion(forOccasion);
     setLoading(true);
     setResult(null);
     setError("");
     setLoadingMsg("Analyzing your fit…");
 
-    // If the free backend is asleep, the first request is slow - reassure the user
     const coldStartTimer = setTimeout(() => {
       setLoadingMsg("Waking up the stylist… this can take a moment the first time ☕");
     }, 6000);
@@ -156,7 +161,7 @@ function Rate({ user }) {
       const response = await fetch(BACKEND_URL + "/rate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageForApi, occasion }),
+        body: JSON.stringify({ image: imageForApi, occasion: forOccasion }),
       });
       const data = await response.json();
 
@@ -167,18 +172,21 @@ function Rate({ user }) {
 
       setResult(data);
 
-      const thumbnail = await resizeToJpeg(image, 300, 0.7);
-      await addDoc(collection(db, "users", user.uid, "ratings"), {
-        overallScore: data.overallScore,
-        items: data.items,
-        tips: data.tips,
-        thumbnail: thumbnail,
-        occasion: occasion,
-        dateKey: todayKey(),
-        createdAt: serverTimestamp(),
-      });
-
-      await loadStreak();
+      // Save to history only the first time we rate this photo for this occasion
+      if (!savedOccasions.current.has(forOccasion)) {
+        savedOccasions.current.add(forOccasion);
+        const thumbnail = await resizeToJpeg(image, 300, 0.7);
+        await addDoc(collection(db, "users", user.uid, "ratings"), {
+          overallScore: data.overallScore,
+          items: data.items,
+          tips: data.tips,
+          thumbnail: thumbnail,
+          occasion: forOccasion,
+          dateKey: todayKey(),
+          createdAt: serverTimestamp(),
+        });
+        await loadStreak();
+      }
     } catch (err) {
       setError("Could not reach the backend. Please try again in a moment.");
     } finally {
@@ -186,6 +194,29 @@ function Rate({ user }) {
       setLoading(false);
     }
   }
+
+  function handleRate() {
+    if (!image) {
+      alert("Please upload a photo first.");
+      return;
+    }
+    rateFor(occasion);
+  }
+
+  const occasionPill = (o, onClick) => (
+    <button
+      key={o}
+      onClick={onClick}
+      className={
+        "px-4 py-2 rounded-full text-sm font-semibold transition " +
+        (occasion === o
+          ? "btn-gold"
+          : "bg-[#f8f1e6] text-[#9b8a68] hover:text-[#a9823a]")
+      }
+    >
+      {o}
+    </button>
+  );
 
   return (
     <div>
@@ -200,27 +231,14 @@ function Rate({ user }) {
         )}
       </div>
 
-      {/* Before a result: the uploader + rate button */}
-      {!result && (
+      {/* CASE A: choosing occasion + uploading (before any result) */}
+      {!result && !loading && (
         <>
           <p className="text-sm font-semibold text-[#3d3220] mb-2">
             What's the occasion?
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
-            {OCCASIONS.map((o) => (
-              <button
-                key={o}
-                onClick={() => setOccasion(o)}
-                className={
-                  "px-4 py-2 rounded-full text-sm font-semibold transition " +
-                  (occasion === o
-                    ? "btn-gold"
-                    : "bg-[#f8f1e6] text-[#9b8a68] hover:text-[#a9823a]")
-                }
-              >
-                {o}
-              </button>
-            ))}
+            {OCCASIONS.map((o) => occasionPill(o, () => setOccasion(o)))}
           </div>
 
           <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
@@ -244,20 +262,10 @@ function Rate({ user }) {
 
           <button
             onClick={handleRate}
-            disabled={loading}
             className="btn-gold w-full py-4 rounded-2xl font-semibold text-base"
           >
-            {loading ? "Analyzing…" : "Rate My Outfit"}
+            Rate My Outfit
           </button>
-
-          {loading && (
-            <div className="fade-in glass-card rounded-[28px] p-6 mt-5 flex flex-col items-center gap-3">
-              <div className="spinner"></div>
-              <p className="pulse text-[#3d3220] font-medium text-center">
-                {loadingMsg}
-              </p>
-            </div>
-          )}
 
           {error && (
             <p className="mt-3 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5">
@@ -267,11 +275,32 @@ function Rate({ user }) {
         </>
       )}
 
-      {/* After a result: the photo, the score card, and a way to start over */}
+      {/* CASE B: loading (keep the photo visible for context) */}
+      {loading && (
+        <div className="fade-in">
+          {image && (
+            <div className="glass-card rounded-[32px] p-4 mb-4">
+              <img
+                src={image}
+                alt="your outfit"
+                className="w-full max-h-[300px] object-contain rounded-3xl"
+              />
+            </div>
+          )}
+          <div className="glass-card rounded-[28px] p-6 flex flex-col items-center gap-3">
+            <div className="spinner"></div>
+            <p className="pulse text-[#3d3220] font-medium text-center">
+              {loadingMsg}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* CASE C: result, with an occasion switcher to re-rate the same photo */}
       {result && !loading && (
         <div className="fade-in">
           {image && (
-            <div className="glass-card rounded-[32px] p-4 mb-2">
+            <div className="glass-card rounded-[32px] p-4 mb-4">
               <img
                 src={image}
                 alt="your outfit"
@@ -279,6 +308,13 @@ function Rate({ user }) {
               />
             </div>
           )}
+
+          <p className="text-sm font-semibold text-[#3d3220] mb-2">
+            Rate this fit for another occasion:
+          </p>
+          <div className="flex flex-wrap gap-2 mb-1">
+            {OCCASIONS.map((o) => occasionPill(o, () => rateFor(o)))}
+          </div>
 
           <ResultCard result={result} imageDataUrl={image} occasion={occasion} />
 
