@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import confetti from "canvas-confetti";
 import { shareResult } from "./share";
 
 // A short friendly verdict shown next to the score ring
@@ -26,12 +27,33 @@ export function itemEmoji(name) {
 function ResultCard({ result, imageDataUrl, occasion }) {
   const cardRef = useRef(null);
 
+  // Celebrate a great score with a gold confetti burst 🎉
+  useEffect(() => {
+    if (result.overallScore >= 8) {
+      const burst = (ratio, opts) =>
+        confetti({
+          particleCount: Math.floor(180 * ratio),
+          origin: { y: 0.65 },
+          colors: ["#caa24e", "#a9823a", "#e8c987", "#f3dbe2", "#fffdf9"],
+          ...opts,
+        });
+      burst(0.3, { spread: 40, startVelocity: 45 });
+      burst(0.4, { spread: 80 });
+      burst(0.3, { spread: 110, decay: 0.92, scalar: 1.1 });
+    }
+  }, []);
+
   return (
     <div className="fade-in mt-5">
       <div ref={cardRef} className="glass-card rounded-[32px] p-6">
         {occasion && (
           <div className="inline-block mb-4 px-3 py-1 rounded-full text-xs font-semibold bg-[#f4ead9] text-[#a9823a]">
             For {occasion}
+          </div>
+        )}
+        {result.overallScore >= 8 && (
+          <div className="mb-4 text-center text-sm font-semibold text-[#a9823a] bg-[#f4ead9] rounded-2xl py-2">
+            🎉 Stunning — this fit's a keeper!
           </div>
         )}
         <div className="flex items-center gap-5">
