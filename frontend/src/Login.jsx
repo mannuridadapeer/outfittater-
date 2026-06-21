@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
 
@@ -49,19 +50,23 @@ function Login({ onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState(""); // success / info messages
 
-  // Clear any error the moment the user starts typing again
+  // Clear messages the moment the user starts typing again
   function handleEmail(e) {
     setEmail(e.target.value);
     if (error) setError("");
+    if (notice) setNotice("");
   }
   function handlePassword(e) {
     setPassword(e.target.value);
     if (error) setError("");
+    if (notice) setNotice("");
   }
 
   async function handleSignUp() {
     setError("");
+    setNotice("");
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (e) {
@@ -71,6 +76,7 @@ function Login({ onBack }) {
 
   async function handleSignIn() {
     setError("");
+    setNotice("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e) {
@@ -80,11 +86,30 @@ function Login({ onBack }) {
 
   async function handleGoogle() {
     setError("");
+    setNotice("");
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (e) {
       const msg = friendlyAuthError(e);
       if (msg) setError(msg);
+    }
+  }
+
+  // Send a password-reset email to whatever's in the email box
+  async function handleForgot() {
+    setError("");
+    setNotice("");
+    if (!email) {
+      setError("Type your email above first, then tap 'Forgot password?'");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setNotice(
+        "If an account exists for that email, a password reset link is on its way. Check your inbox (and spam)."
+      );
+    } catch (e) {
+      setError(friendlyAuthError(e));
     }
   }
 
@@ -132,6 +157,13 @@ function Login({ onBack }) {
           </button>
         </div>
 
+        <button
+          onClick={handleForgot}
+          className="block mx-auto text-sm text-[#9b8a68] hover:text-[#a9823a] mt-3 transition"
+        >
+          Forgot password?
+        </button>
+
         <div className="flex items-center my-5 text-[#9b8a68] text-xs">
           <span className="flex-1 h-px bg-[#ece0c8]"></span>
           <span className="px-3">or</span>
@@ -145,6 +177,11 @@ function Login({ onBack }) {
         {error && (
           <p className="mt-4 text-sm text-[#a8506a] bg-[#f3dbe2] rounded-xl px-3 py-2.5 text-center">
             {error}
+          </p>
+        )}
+        {notice && (
+          <p className="mt-4 text-sm text-[#a9823a] bg-[#f4ead9] rounded-xl px-3 py-2.5 text-center">
+            {notice}
           </p>
         )}
       </div>
