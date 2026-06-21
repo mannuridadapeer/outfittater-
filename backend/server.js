@@ -15,8 +15,42 @@ import crypto from "node:crypto";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.set("trust proxy", 1); // behind Render's proxy - needed to read the real client IP
+
+// Only allow our own frontend (any *.vercel.app deploy) and local dev to call us
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // non-browser tools / same-origin
+    const ok =
+      /\.vercel\.app$/.test(origin) ||
+      /^http:\/\/localhost(:\d+)?$/.test(origin);
+    cb(null, ok);
+  },
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
+
+// Basic in-memory rate limit: cap how many ratings one IP can do per hour,
+// so nobody can spam the app and burn through the free Gemini quota.
+const RATE_LIMIT = 60;
+const RATE_WINDOW_MS = 60 * 60 * 1000;
+const rateWindows = new Map();
+function rateLimit(req, res, next) {
+  const ip = req.ip || "unknown";
+  const now = Date.now();
+  const entry = rateWindows.get(ip);
+  if (!entry || now - entry.windowStart > RATE_WINDOW_MS) {
+    rateWindows.set(ip, { count: 1, windowStart: now });
+    return next();
+  }
+  if (entry.count >= RATE_LIMIT) {
+    return res.status(429).json({
+      error: "You've rated a lot in a short time! Please wait a bit and try again.",
+    });
+  }
+  entry.count++;
+  next();
+}
 
 // Connect to Gemini using your secret key
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -94,9 +128,9 @@ app.get("/", (req, res) => {
 });
 
 // --- Main route: rate an outfit ---
-app.post("/rate", async (req, res) => {
+app.post("/rate", rateLimit, async (req, res) => {
   try {
-    const { image, occasion } = req.body;
+    const { image, occasion, persona } = req.body;
     if (!image) {
       return res.status(400).json({ error: "No image was sent." });
     }
@@ -104,6 +138,18 @@ app.post("/rate", async (req, res) => {
     // Only allow known occasions; default to a neutral everyday look
     const allowedOccasions = ["Casual", "Work", "Date", "Party", "Gym", "Formal"];
     const safeOccasion = allowedOccasions.includes(occasion) ? occasion : "Casual";
+
+    // Judge persona controls the TONE of the feedback (not the scores)
+    const personaTone = {
+      "Honest": "Use a friendly, balanced, constructive tone.",
+      "Hype Bestie":
+        "Use a warm, very encouraging hype-friend tone, full of excitement and genuine compliments, while staying truthful.",
+      "Brutally Honest":
+        "Use a blunt, savage, no-sugarcoating tone - harsh but fair. Never be cruel about the person's body, only about the clothing choices.",
+      "Runway Critic":
+        "Use the sophisticated, discerning tone of a high-fashion runway critic, with elevated fashion vocabulary.",
+    };
+    const safePersona = personaTone[persona] ? persona : "Honest";
 
     // Split "data:image/jpeg;base64,XXXX" into the type and the data
     const rawMime = image.substring(image.indexOf(":") + 1, image.indexOf(";"));
@@ -118,7 +164,7 @@ app.post("/rate", async (req, res) => {
     // so the same photo can score differently for, say, "Gym" vs "Date".
     const hash = crypto
       .createHash("sha256")
-      .update(safeOccasion + "|" + base64Data)
+      .update(safeOccasion + "|" + safePersona + "|" + base64Data)
       .digest("hex");
     if (ratingCache.has(hash)) {
       return res.json(ratingCache.get(hash));
@@ -142,6 +188,8 @@ app.post("/rate", async (req, res) => {
       "a score of 0 and say it is not visible. Judge only the clothing - ignore the photo's " +
       "lighting, background, and image quality. Finally give 2 to 3 short, specific tips to " +
       "level up the outfit. Use whole numbers only for every score (no decimals). " +
+      `Tone for your critiques and tips: ${personaTone[safePersona]} ` +
+      "Keep the scores based strictly on the rubric regardless of tone - only your wording changes. " +
       "Do not use any markdown, asterisks, or bullet characters.";
 
     const response = await generateWithRetry({

@@ -24,7 +24,7 @@ export function itemEmoji(name) {
 // The reusable score card: gold ring + verdict, breakdown pills, tips,
 // and a Share button. Used both for a fresh rating and a reopened history item.
 // `imageDataUrl` is only used as a fallback if the card snapshot fails.
-function ResultCard({ result, imageDataUrl, occasion }) {
+function ResultCard({ result, imageDataUrl, occasion, persona }) {
   const cardRef = useRef(null);
 
   // Celebrate a great score with a gold confetti burst 🎉
@@ -46,9 +46,18 @@ function ResultCard({ result, imageDataUrl, occasion }) {
   return (
     <div className="fade-in mt-5">
       <div ref={cardRef} className="glass-card rounded-[32px] p-6">
-        {occasion && (
-          <div className="inline-block mb-4 px-3 py-1 rounded-full text-xs font-semibold bg-[#f4ead9] text-[#a9823a]">
-            For {occasion}
+        {(occasion || persona) && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {occasion && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#f4ead9] text-[#a9823a]">
+                For {occasion}
+              </span>
+            )}
+            {persona && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#f8f1e6] text-[#9b8a68]">
+                {persona}
+              </span>
+            )}
           </div>
         )}
         {result.overallScore >= 8 && (

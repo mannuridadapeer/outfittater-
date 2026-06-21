@@ -64,6 +64,7 @@ function History({ user, onRate }) {
           result={selected}
           imageDataUrl={selected.thumbnail}
           occasion={selected.occasion}
+          persona={selected.persona}
         />
       </div>
     );

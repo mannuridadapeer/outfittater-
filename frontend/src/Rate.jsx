@@ -16,6 +16,13 @@ const BACKEND_URL =
 
 const OCCASIONS = ["Casual", "Work", "Date", "Party", "Gym", "Formal"];
 
+const PERSONAS = [
+  { key: "Honest", label: "🙂 Honest" },
+  { key: "Hype Bestie", label: "💖 Hype Bestie" },
+  { key: "Brutally Honest", label: "🔪 Brutal" },
+  { key: "Runway Critic", label: "🎩 Critic" },
+];
+
 function todayKey() {
   const d = new Date();
   return (
@@ -88,6 +95,7 @@ function Rate({ user }) {
   const [streak, setStreak] = useState(0);
   const [todayRating, setTodayRating] = useState(null);
   const [occasion, setOccasion] = useState("Casual");
+  const [persona, setPersona] = useState("Honest");
 
   // Tracks which occasions we've already saved for the CURRENT photo,
   // so switching occasions doesn't create duplicate history entries.
@@ -161,7 +169,7 @@ function Rate({ user }) {
       const response = await fetch(BACKEND_URL + "/rate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageForApi, occasion: forOccasion }),
+        body: JSON.stringify({ image: imageForApi, occasion: forOccasion, persona }),
       });
       const data = await response.json();
 
@@ -182,6 +190,7 @@ function Rate({ user }) {
           tips: data.tips,
           thumbnail: thumbnail,
           occasion: forOccasion,
+          persona: persona,
           dateKey: todayKey(),
           createdAt: serverTimestamp(),
         });
@@ -234,6 +243,26 @@ function Rate({ user }) {
       {/* CASE A: choosing occasion + uploading (before any result) */}
       {!result && !loading && (
         <>
+          <p className="text-sm font-semibold text-[#3d3220] mb-2">
+            Choose your judge
+          </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {PERSONAS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setPersona(p.key)}
+                className={
+                  "px-4 py-2 rounded-full text-sm font-semibold transition " +
+                  (persona === p.key
+                    ? "btn-gold"
+                    : "bg-[#f8f1e6] text-[#9b8a68] hover:text-[#a9823a]")
+                }
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
           <p className="text-sm font-semibold text-[#3d3220] mb-2">
             What's the occasion?
           </p>
@@ -316,7 +345,12 @@ function Rate({ user }) {
             {OCCASIONS.map((o) => occasionPill(o, () => rateFor(o)))}
           </div>
 
-          <ResultCard result={result} imageDataUrl={image} occasion={occasion} />
+          <ResultCard
+            result={result}
+            imageDataUrl={image}
+            occasion={occasion}
+            persona={persona}
+          />
 
           <button
             onClick={reset}

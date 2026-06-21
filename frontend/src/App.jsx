@@ -5,6 +5,7 @@ import Welcome from "./Welcome";
 import Login from "./Login";
 import Rate from "./Rate";
 import History from "./History";
+import Stats from "./Stats";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -74,15 +75,21 @@ function App() {
         >
           History
         </button>
+        <button
+          onClick={() => setScreen("stats")}
+          className={tabClass(screen === "stats")}
+        >
+          Stats
+        </button>
       </nav>
 
       {/* key changes on tab switch -> re-triggers the fade/slide animation */}
       <main key={screen} className="fade-in">
-        {screen === "rate" ? (
-          <Rate user={user} />
-        ) : (
+        {screen === "rate" && <Rate user={user} />}
+        {screen === "history" && (
           <History user={user} onRate={() => setScreen("rate")} />
         )}
+        {screen === "stats" && <Stats user={user} />}
       </main>
 
       <footer className="text-center text-xs text-[#b6a888] mt-12">
