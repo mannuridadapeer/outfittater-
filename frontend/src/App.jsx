@@ -96,7 +96,9 @@ function App() {
         {screen === "stats" && <Stats user={user} />}
       </main>
 
-      {showPaywall && <Paywall onClose={() => setShowPaywall(false)} />}
+      {showPaywall && (
+        <Paywall onClose={() => setShowPaywall(false)} user={user} />
+      )}
 
       <footer className="text-center text-xs text-[#b6a888] mt-12">
         Rate My Outfit · made with ✨ and AI

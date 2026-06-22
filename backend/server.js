@@ -10,9 +10,26 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import crypto from "node:crypto";
+import admin from "firebase-admin";
 
 // Load the secret API key from the .env file
 dotenv.config();
+
+// Firebase Admin - only starts if a service account is provided. The Lemon
+// Squeezy webhook uses this to set a user's plan to "pro" after they pay.
+let firestore = null;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    firestore = admin.firestore();
+    console.log("Firebase Admin ready.");
+  } catch (e) {
+    console.error("Firebase Admin init failed:", e.message);
+  }
+} else {
+  console.log("FIREBASE_SERVICE_ACCOUNT not set - plan updates are disabled.");
+}
 
 const app = express();
 app.set("trust proxy", 1); // behind Render's proxy - needed to read the real client IP
@@ -29,7 +46,12 @@ const corsOptions = {
   },
 };
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" }));
+// Parse JSON for everything EXCEPT the webhook, which needs the raw body to
+// verify Lemon Squeezy's signature.
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/webhook")) return next();
+  express.json({ limit: "10mb" })(req, res, next);
+});
 
 // Basic in-memory rate limit: cap how many ratings one IP can do per hour,
 // so nobody can spam the app and burn through the free Gemini quota.
@@ -126,6 +148,46 @@ async function generateWithRetry(params, maxAttempts = 4) {
 // --- Health check ---
 app.get("/", (req, res) => {
   res.send("Backend is running!");
+});
+
+// --- Lemon Squeezy webhook: flip a user to Pro after they subscribe ---
+app.post("/webhook/lemonsqueezy", express.raw({ type: "*/*" }), async (req, res) => {
+  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+  if (!secret) return res.status(500).send("Webhook not configured");
+
+  // Verify the signature so ONLY Lemon Squeezy can change someone's plan
+  const signature = req.get("X-Signature") || "";
+  const expected = crypto.createHmac("sha256", secret).update(req.body).digest("hex");
+  const sigBuf = Buffer.from(signature, "utf8");
+  const expBuf = Buffer.from(expected, "utf8");
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return res.status(401).send("Invalid signature");
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(req.body.toString("utf8"));
+  } catch {
+    return res.status(400).send("Bad payload");
+  }
+
+  const eventName = payload?.meta?.event_name || "";
+  const userId = payload?.meta?.custom_data?.user_id;
+  const status = payload?.data?.attributes?.status; // active, on_trial, cancelled, expired...
+
+  if (firestore && userId && eventName.startsWith("subscription_")) {
+    const isPro = status === "active" || status === "on_trial";
+    try {
+      await firestore
+        .doc(`users/${userId}/meta/profile`)
+        .set({ plan: isPro ? "pro" : "free" }, { merge: true });
+      console.log(`Plan for ${userId} -> ${isPro ? "pro" : "free"} (${eventName}/${status})`);
+    } catch (e) {
+      console.error("Failed to update plan:", e.message);
+    }
+  }
+
+  res.status(200).send("ok"); // always 200 so Lemon Squeezy doesn't keep retrying
 });
 
 // --- Main route: rate an outfit ---

@@ -230,7 +230,7 @@ function Rate({ user, onUpgrade }) {
         try {
           await setDoc(
             doc(db, "users", user.uid, "meta", "profile"),
-            { plan, usageDate: todayKey(), usageCount: newCount },
+            { usageDate: todayKey(), usageCount: newCount },
             { merge: true }
           );
         } catch (e) {

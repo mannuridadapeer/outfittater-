@@ -6,7 +6,24 @@ const FEATURES = [
   "New features first",
 ];
 
-function Paywall({ onClose }) {
+function Paywall({ onClose, user }) {
+  function upgrade() {
+    const base = import.meta.env.VITE_LEMONSQUEEZY_URL;
+    if (!base) {
+      alert("Pro is launching soon — payments are being set up! 🎉");
+      return;
+    }
+    // Attach the user's email + id so the webhook knows who paid
+    const url =
+      base +
+      (base.includes("?") ? "&" : "?") +
+      "checkout[email]=" +
+      encodeURIComponent(user?.email || "") +
+      "&checkout[custom][user_id]=" +
+      encodeURIComponent(user?.uid || "");
+    window.location.href = url;
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/40"
@@ -37,9 +54,7 @@ function Paywall({ onClose }) {
         </div>
 
         <button
-          onClick={() =>
-            alert("Pro is launching soon — payments are coming shortly! 🎉")
-          }
+          onClick={upgrade}
           className="btn-gold w-full py-3.5 rounded-2xl font-semibold mt-4"
         >
           Upgrade to Pro
