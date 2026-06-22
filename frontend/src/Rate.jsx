@@ -119,7 +119,14 @@ function Rate({ user, onUpgrade }) {
       const ref = doc(db, "users", user.uid, "meta", "profile");
       const snap = await getDoc(ref);
       const data = snap.exists() ? snap.data() : {};
-      setPlan(data.plan === "pro" ? "pro" : "free");
+      // Pro = plan is pro AND they've paid within ~35 days (so access lapses
+      // automatically if a subscription stops). No lastChargeAt = manual/test pro.
+      const within35Days =
+        data.lastChargeAt &&
+        Date.now() - data.lastChargeAt < 35 * 24 * 60 * 60 * 1000;
+      const isPro =
+        data.plan === "pro" && (within35Days || !data.lastChargeAt);
+      setPlan(isPro ? "pro" : "free");
       setUsedToday(data.usageDate === todayKey() ? data.usageCount || 0 : 0);
     } catch (e) {
       console.log("Could not load plan:", e);

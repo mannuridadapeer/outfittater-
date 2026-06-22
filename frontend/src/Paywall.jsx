@@ -8,19 +8,22 @@ const FEATURES = [
 
 function Paywall({ onClose, user }) {
   function upgrade() {
-    const base = import.meta.env.VITE_LEMONSQUEEZY_URL;
+    const base = import.meta.env.VITE_GUMROAD_URL;
     if (!base) {
       alert("Pro is launching soon — payments are being set up! 🎉");
       return;
     }
-    // Attach the user's email + id so the webhook knows who paid
+    // Attach the user's id + email so the webhook knows who paid.
+    // The customer types the influencer's discount code on Gumroad's checkout.
+    const sep = base.includes("?") ? "&" : "?";
     const url =
       base +
-      (base.includes("?") ? "&" : "?") +
-      "checkout[email]=" +
+      sep +
+      "user_id=" +
+      encodeURIComponent(user?.uid || "") +
+      "&email=" +
       encodeURIComponent(user?.email || "") +
-      "&checkout[custom][user_id]=" +
-      encodeURIComponent(user?.uid || "");
+      "&wanted=true";
     window.location.href = url;
   }
 

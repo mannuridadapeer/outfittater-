@@ -150,44 +150,49 @@ app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
 
-// --- Lemon Squeezy webhook: flip a user to Pro after they subscribe ---
-app.post("/webhook/lemonsqueezy", express.raw({ type: "*/*" }), async (req, res) => {
-  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
-  if (!secret) return res.status(500).send("Webhook not configured");
-
-  // Verify the signature so ONLY Lemon Squeezy can change someone's plan
-  const signature = req.get("X-Signature") || "";
-  const expected = crypto.createHmac("sha256", secret).update(req.body).digest("hex");
-  const sigBuf = Buffer.from(signature, "utf8");
-  const expBuf = Buffer.from(expected, "utf8");
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-    return res.status(401).send("Invalid signature");
+// --- Gumroad ping: mark a user Pro after they buy or renew the membership ---
+// Gumroad POSTs form-encoded data on every sale and recurring charge.
+app.post("/webhook/gumroad", express.urlencoded({ extended: true }), async (req, res) => {
+  const secret = process.env.GUMROAD_PING_SECRET;
+  // We protect this URL with a secret query param: /webhook/gumroad?secret=...
+  if (!secret || req.query.secret !== secret) {
+    return res.status(401).send("Invalid secret");
   }
 
-  let payload;
-  try {
-    payload = JSON.parse(req.body.toString("utf8"));
-  } catch {
-    return res.status(400).send("Bad payload");
-  }
+  const body = req.body || {};
+  const email = body.email;
+  const offerCode = body.offer_code || ""; // the influencer's discount code, if used
+  const refunded =
+    body.refunded === "true" || body.disputed === "true" || body.chargeback === "true";
 
-  const eventName = payload?.meta?.event_name || "";
-  const userId = payload?.meta?.custom_data?.user_id;
-  const status = payload?.data?.attributes?.status; // active, on_trial, cancelled, expired...
+  // We pass the Firebase user id through the checkout URL (?user_id=...)
+  let userId = body.url_params && body.url_params.user_id;
 
-  if (firestore && userId && eventName.startsWith("subscription_")) {
-    const isPro = status === "active" || status === "on_trial";
+  // Fallback: if no user_id came through, match the buyer by email
+  if (!userId && email && firestore) {
     try {
-      await firestore
-        .doc(`users/${userId}/meta/profile`)
-        .set({ plan: isPro ? "pro" : "free" }, { merge: true });
-      console.log(`Plan for ${userId} -> ${isPro ? "pro" : "free"} (${eventName}/${status})`);
+      const u = await admin.auth().getUserByEmail(email);
+      userId = u.uid;
+    } catch {
+      /* no matching account */
+    }
+  }
+
+  if (firestore && userId) {
+    try {
+      const update = { plan: refunded ? "free" : "pro" };
+      if (!refunded) update.lastChargeAt = Date.now(); // used to tell who's still active
+      if (offerCode) update.referralCode = offerCode; // remember which influencer code
+      await firestore.doc(`users/${userId}/meta/profile`).set(update, { merge: true });
+      console.log(
+        `Gumroad: ${userId} -> ${update.plan}${offerCode ? " (code " + offerCode + ")" : ""}`
+      );
     } catch (e) {
       console.error("Failed to update plan:", e.message);
     }
   }
 
-  res.status(200).send("ok"); // always 200 so Lemon Squeezy doesn't keep retrying
+  res.status(200).send("ok"); // always 200 so Gumroad doesn't keep retrying
 });
 
 // --- Main route: rate an outfit ---
