@@ -150,49 +150,56 @@ app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
 
-// --- Gumroad ping: mark a user Pro after they buy or renew the membership ---
-// Gumroad POSTs form-encoded data on every sale and recurring charge.
-app.post("/webhook/gumroad", express.urlencoded({ extended: true }), async (req, res) => {
-  const secret = process.env.GUMROAD_PING_SECRET;
-  // We protect this URL with a secret query param: /webhook/gumroad?secret=...
-  if (!secret || req.query.secret !== secret) {
-    return res.status(401).send("Invalid secret");
+// --- Paddle webhook: mark a user Pro after they subscribe / renew ---
+app.post("/webhook/paddle", express.raw({ type: "*/*" }), async (req, res) => {
+  const secret = process.env.PADDLE_WEBHOOK_SECRET;
+  if (!secret) return res.status(500).send("Webhook not configured");
+
+  // Verify Paddle's signature. Header: "Paddle-Signature: ts=...;h1=..."
+  // Signed payload = `${ts}:${rawBody}`, HMAC-SHA256 with the endpoint secret.
+  const sigHeader = req.get("Paddle-Signature") || "";
+  const parts = Object.fromEntries(sigHeader.split(";").map((kv) => kv.split("=")));
+  const ts = parts.ts;
+  const h1 = parts.h1;
+  if (!ts || !h1) return res.status(401).send("Bad signature header");
+
+  const signedPayload = `${ts}:${req.body.toString("utf8")}`;
+  const expected = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(h1);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return res.status(401).send("Invalid signature");
   }
 
-  const body = req.body || {};
-  const email = body.email;
-  const offerCode = body.offer_code || ""; // the influencer's discount code, if used
-  const refunded =
-    body.refunded === "true" || body.disputed === "true" || body.chargeback === "true";
-
-  // We pass the Firebase user id through the checkout URL (?user_id=...)
-  let userId = body.url_params && body.url_params.user_id;
-
-  // Fallback: if no user_id came through, match the buyer by email
-  if (!userId && email && firestore) {
-    try {
-      const u = await admin.auth().getUserByEmail(email);
-      userId = u.uid;
-    } catch {
-      /* no matching account */
-    }
+  let payload;
+  try {
+    payload = JSON.parse(req.body.toString("utf8"));
+  } catch {
+    return res.status(400).send("Bad payload");
   }
 
-  if (firestore && userId) {
+  const eventType = payload?.event_type || "";
+  const data = payload?.data || {};
+  const userId = data?.custom_data?.user_id;
+  const status = data?.status; // active, trialing, canceled, past_due, paused...
+
+  if (firestore && userId && eventType.startsWith("subscription.")) {
+    const isPro = status === "active" || status === "trialing";
+    const update = { plan: isPro ? "pro" : "free" };
+    if (isPro) update.lastChargeAt = Date.now(); // used to tell who's still active
+    // Which discount the customer used = which influencer to credit
+    const code =
+      (data.discount && (data.discount.code || data.discount.id)) || data.discount_id;
+    if (code) update.referralCode = code;
     try {
-      const update = { plan: refunded ? "free" : "pro" };
-      if (!refunded) update.lastChargeAt = Date.now(); // used to tell who's still active
-      if (offerCode) update.referralCode = offerCode; // remember which influencer code
       await firestore.doc(`users/${userId}/meta/profile`).set(update, { merge: true });
-      console.log(
-        `Gumroad: ${userId} -> ${update.plan}${offerCode ? " (code " + offerCode + ")" : ""}`
-      );
+      console.log(`Paddle: ${userId} -> ${update.plan} (${eventType}/${status})`);
     } catch (e) {
       console.error("Failed to update plan:", e.message);
     }
   }
 
-  res.status(200).send("ok"); // always 200 so Gumroad doesn't keep retrying
+  res.status(200).send("ok"); // always 200 so Paddle doesn't keep retrying
 });
 
 // --- Main route: rate an outfit ---

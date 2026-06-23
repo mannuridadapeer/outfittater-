@@ -1,3 +1,5 @@
+import { openCheckout } from "./paddle";
+
 const FEATURES = [
   "Unlimited outfit ratings",
   "All judge personas (Hype, Brutal, Critic…)",
@@ -8,24 +10,11 @@ const FEATURES = [
 
 function Paywall({ onClose, user }) {
   function checkout(plan) {
-    const url =
+    const priceId =
       plan === "annual"
-        ? import.meta.env.VITE_PADDLE_ANNUAL_URL
-        : import.meta.env.VITE_PADDLE_MONTHLY_URL;
-    if (!url) {
-      alert("Pro is launching soon — payments are being set up! 🎉");
-      return;
-    }
-    // Pass the user's email + id so the webhook knows who paid
-    const sep = url.includes("?") ? "&" : "?";
-    const full =
-      url +
-      sep +
-      "customer_email=" +
-      encodeURIComponent(user?.email || "") +
-      "&user_id=" +
-      encodeURIComponent(user?.uid || "");
-    window.location.href = full;
+        ? import.meta.env.VITE_PADDLE_PRICE_YEARLY
+        : import.meta.env.VITE_PADDLE_PRICE_MONTHLY;
+    openCheckout({ priceId, email: user?.email, userId: user?.uid });
   }
 
   return (
