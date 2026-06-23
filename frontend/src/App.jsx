@@ -101,6 +101,13 @@ function App() {
       )}
 
       <footer className="text-center text-xs text-[#b6a888] mt-12">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mb-2">
+          <a href="/privacy" className="hover:text-[#a9823a]">Privacy</a>
+          <a href="/terms" className="hover:text-[#a9823a]">Terms</a>
+          <a href="/refund" className="hover:text-[#a9823a]">Refunds</a>
+          <a href="/pricing" className="hover:text-[#a9823a]">Pricing</a>
+          <a href="/contact" className="hover:text-[#a9823a]">Contact</a>
+        </div>
         Rate My Outfit · made with ✨ and AI
       </footer>
     </div>
