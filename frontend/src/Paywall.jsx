@@ -7,24 +7,25 @@ const FEATURES = [
 ];
 
 function Paywall({ onClose, user }) {
-  function upgrade() {
-    const base = import.meta.env.VITE_GUMROAD_URL;
-    if (!base) {
+  function checkout(plan) {
+    const url =
+      plan === "annual"
+        ? import.meta.env.VITE_PADDLE_ANNUAL_URL
+        : import.meta.env.VITE_PADDLE_MONTHLY_URL;
+    if (!url) {
       alert("Pro is launching soon — payments are being set up! 🎉");
       return;
     }
-    // Attach the user's id + email so the webhook knows who paid.
-    // The customer types the influencer's discount code on Gumroad's checkout.
-    const sep = base.includes("?") ? "&" : "?";
-    const url =
-      base +
+    // Pass the user's email + id so the webhook knows who paid
+    const sep = url.includes("?") ? "&" : "?";
+    const full =
+      url +
       sep +
-      "user_id=" +
-      encodeURIComponent(user?.uid || "") +
-      "&email=" +
+      "customer_email=" +
       encodeURIComponent(user?.email || "") +
-      "&wanted=true";
-    window.location.href = url;
+      "&user_id=" +
+      encodeURIComponent(user?.uid || "");
+    window.location.href = full;
   }
 
   return (
@@ -51,20 +52,30 @@ function Paywall({ onClose, user }) {
           ))}
         </div>
 
-        <div className="text-3xl font-extrabold text-[#3d3220]">
-          $3.99
-          <span className="text-base font-semibold text-[#9b8a68]">/mo</span>
-        </div>
+        {/* Yearly - best value */}
+        <button
+          onClick={() => checkout("annual")}
+          className="btn-gold w-full py-3.5 rounded-2xl font-semibold flex items-center justify-between px-5"
+        >
+          <span>Yearly</span>
+          <span>$49.99/yr</span>
+        </button>
+        <p className="text-xs font-semibold text-[#a9823a] mt-1.5 mb-3">
+          🔥 Best value — save 58% vs monthly
+        </p>
+
+        {/* Monthly */}
+        <button
+          onClick={() => checkout("monthly")}
+          className="btn-soft w-full py-3.5 rounded-2xl font-semibold flex items-center justify-between px-5"
+        >
+          <span>Monthly</span>
+          <span>$9.99/mo</span>
+        </button>
 
         <button
-          onClick={upgrade}
-          className="btn-gold w-full py-3.5 rounded-2xl font-semibold mt-4"
-        >
-          Upgrade to Pro
-        </button>
-        <button
           onClick={onClose}
-          className="text-sm text-[#9b8a68] hover:text-[#3d3220] mt-3 transition"
+          className="text-sm text-[#9b8a68] hover:text-[#3d3220] mt-4 transition"
         >
           Maybe later
         </button>
