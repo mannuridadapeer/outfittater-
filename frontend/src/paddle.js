@@ -18,6 +18,7 @@ function getPaddle() {
     environment,
     // When Paddle confirms a successful checkout, mark this user as Pro.
     eventCallback: async (event) => {
+      console.log("Paddle event:", event?.name);
       if (event?.name === "checkout.completed" && pendingUserId) {
         try {
           await setDoc(
@@ -28,6 +29,8 @@ function getPaddle() {
         } catch (e) {
           console.log("Could not set Pro:", e);
         }
+        // Reload so the app picks up the new Pro status
+        window.location.reload();
       }
     },
   });
@@ -48,7 +51,6 @@ export async function openCheckout({ priceId, email, userId }) {
       displayMode: "overlay",
       theme: "light",
       showAddDiscounts: true,
-      successUrl: window.location.origin,
     },
     items: [{ priceId, quantity: 1 }],
     customer: email ? { email } : undefined,
