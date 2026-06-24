@@ -217,6 +217,54 @@ app.get("/plan", async (req, res) => {
   }
 });
 
+// --- Customer portal: a link where the user can manage / cancel their subscription ---
+app.get("/portal", async (req, res) => {
+  try {
+    const authHeader = req.get("Authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!token) return res.status(401).json({ error: "No token" });
+
+    let payload;
+    try {
+      payload = await verifyFirebaseToken(token);
+    } catch {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+    if (!PADDLE_API_KEY) return res.status(500).json({ error: "Not configured" });
+
+    const headers = {
+      Authorization: `Bearer ${PADDLE_API_KEY}`,
+      "Content-Type": "application/json",
+    };
+
+    const cRes = await fetch(
+      `${PADDLE_API_BASE}/customers?email=${encodeURIComponent(payload.email)}`,
+      { headers }
+    );
+    const customer = ((await cRes.json()).data || [])[0];
+    if (!customer) return res.status(404).json({ error: "No subscription found" });
+
+    const sRes = await fetch(
+      `${PADDLE_API_BASE}/subscriptions?customer_id=${encodeURIComponent(customer.id)}&per_page=100`,
+      { headers }
+    );
+    const subIds = ((await sRes.json()).data || []).map((s) => s.id);
+
+    const pRes = await fetch(`${PADDLE_API_BASE}/customers/${customer.id}/portal-sessions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(subIds.length ? { subscription_ids: subIds } : {}),
+    });
+    const pJson = await pRes.json();
+    const url = pJson?.data?.urls?.general?.overview;
+    if (!url) return res.status(500).json({ error: "Could not create portal" });
+    res.json({ url });
+  } catch (e) {
+    console.error("/portal error:", e.message);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
 // --- Paddle webhook: mark a user Pro after they subscribe / renew ---
 app.post("/webhook/paddle", express.raw({ type: "*/*" }), async (req, res) => {
   const secret = process.env.PADDLE_WEBHOOK_SECRET;

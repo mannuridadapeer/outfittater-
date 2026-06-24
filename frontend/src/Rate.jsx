@@ -171,6 +171,22 @@ function Rate({ user, onUpgrade }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // Open Paddle's customer portal so a Pro user can manage / cancel
+  async function openPortal() {
+    try {
+      const u = auth.currentUser;
+      const token = await u.getIdToken();
+      const r = await fetch(BACKEND_URL + "/portal", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const d = await r.json();
+      if (d.url) window.open(d.url, "_blank");
+      else alert("Couldn't open subscription management. Please try again.");
+    } catch (e) {
+      alert("Couldn't open subscription management. Please try again.");
+    }
+  }
+
   function handleFileChange(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -297,8 +313,16 @@ function Rate({ user, onUpgrade }) {
       </div>
 
       {plan === "pro" ? (
-        <div className="mb-4 px-4 py-2.5 rounded-2xl text-sm font-semibold bg-[#f4ead9] text-[#a9823a] text-center">
-          ✨ Pro · unlimited ratings
+        <div className="mb-4 flex items-center justify-between bg-[#f4ead9] rounded-2xl px-4 py-2.5">
+          <span className="text-sm font-semibold text-[#a9823a]">
+            ✨ Pro · unlimited
+          </span>
+          <button
+            onClick={openPortal}
+            className="text-sm font-semibold text-[#a9823a] hover:underline"
+          >
+            Manage
+          </button>
         </div>
       ) : (
         <div className="mb-4 flex items-center justify-between bg-[#f8f1e6] rounded-2xl px-4 py-2.5">
