@@ -257,7 +257,11 @@ app.get("/portal", async (req, res) => {
     });
     const pJson = await pRes.json();
     const url = pJson?.data?.urls?.general?.overview;
-    if (!url) return res.status(500).json({ error: "Could not create portal" });
+    if (!url) {
+      const detail = pJson?.error?.detail || pJson?.error?.code || `HTTP ${pRes.status}`;
+      console.error("Portal session failed:", pRes.status, JSON.stringify(pJson));
+      return res.status(500).json({ error: "Could not create portal", detail });
+    }
     res.json({ url });
   } catch (e) {
     console.error("/portal error:", e.message);

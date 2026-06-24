@@ -181,7 +181,7 @@ function Rate({ user, onUpgrade }) {
       });
       const d = await r.json();
       if (d.url) window.open(d.url, "_blank");
-      else alert("Couldn't open subscription management. Please try again.");
+      else alert("Couldn't open subscription management: " + (d.detail || d.error || "unknown"));
     } catch (e) {
       alert("Couldn't open subscription management. Please try again.");
     }
