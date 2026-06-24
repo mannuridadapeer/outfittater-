@@ -1,10 +1,11 @@
 import { initializePaddle } from "@paddle/paddle-js";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth } from "./firebase";
 
-// Initialize Paddle once, lazily. Returns null if not configured yet.
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `http://${window.location.hostname}:3000`;
+
 let paddlePromise = null;
-let pendingUserId = null; // who is currently checking out
 
 function getPaddle() {
   if (paddlePromise) return paddlePromise;
@@ -16,35 +17,43 @@ function getPaddle() {
   paddlePromise = initializePaddle({
     token,
     environment,
-    // When Paddle confirms a successful checkout, mark this user as Pro.
-    eventCallback: async (event) => {
-      console.log("Paddle event:", event?.name);
-      if (event?.name === "checkout.completed" && pendingUserId) {
-        try {
-          await setDoc(
-            doc(db, "users", pendingUserId, "meta", "profile"),
-            { plan: "pro", proSince: Date.now() },
-            { merge: true }
-          );
-        } catch (e) {
-          console.log("Could not set Pro:", e);
-        }
-        // Reload so the app picks up the new Pro status
-        window.location.reload();
+    eventCallback: (event) => {
+      // After a successful payment, wait for Paddle to register it, then reload
+      if (event?.name === "checkout.completed") {
+        waitForProThenReload();
       }
     },
   });
   return paddlePromise;
 }
 
-// Open the Paddle overlay checkout for a given price.
+// Poll the backend (which asks Paddle) until the subscription shows up, then reload
+async function waitForProThenReload() {
+  for (let i = 0; i < 6; i++) {
+    try {
+      const u = auth.currentUser;
+      if (u) {
+        const token = await u.getIdToken();
+        const r = await fetch(BACKEND_URL + "/plan", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const d = await r.json();
+        if (d.plan === "pro") break;
+      }
+    } catch (e) {
+      /* keep waiting */
+    }
+    await new Promise((res) => setTimeout(res, 2000));
+  }
+  window.location.reload();
+}
+
 export async function openCheckout({ priceId, email, userId }) {
   const p = getPaddle();
   if (!p || !priceId) {
     alert("Pro is launching soon — payments are being set up! 🎉");
     return;
   }
-  pendingUserId = userId || null;
   const paddle = await p;
   paddle.Checkout.open({
     settings: {

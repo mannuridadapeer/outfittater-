@@ -11,6 +11,7 @@ import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import crypto from "node:crypto";
 import admin from "firebase-admin";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 // Load the secret API key from the .env file
 dotenv.config();
@@ -29,6 +30,50 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   }
 } else {
   console.log("FIREBASE_SERVICE_ACCOUNT not set - plan updates are disabled.");
+}
+
+// --- Source-of-truth plan check: verify the user, then ask Paddle if they're subscribed ---
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "outfitrater-ba33f";
+// Google's public keys for Firebase ID tokens (no secret key needed to verify)
+const firebaseJWKS = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/robot/v1/metadata/jwk/securetoken@system.gserviceaccount.com")
+);
+const PADDLE_API_KEY = process.env.PADDLE_API_KEY;
+const PADDLE_API_BASE = process.env.PADDLE_API_BASE || "https://api.paddle.com";
+
+async function verifyFirebaseToken(token) {
+  const { payload } = await jwtVerify(token, firebaseJWKS, {
+    issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
+    audience: FIREBASE_PROJECT_ID,
+  });
+  return payload; // includes email, sub (uid), etc.
+}
+
+// Ask Paddle whether this email has an active subscription
+async function planFromPaddle(email) {
+  if (!PADDLE_API_KEY || !email) return { plan: "free" };
+  const headers = { Authorization: `Bearer ${PADDLE_API_KEY}` };
+
+  const cRes = await fetch(
+    `${PADDLE_API_BASE}/customers?email=${encodeURIComponent(email)}`,
+    { headers }
+  );
+  const cJson = await cRes.json();
+  const customers = cJson.data || [];
+  if (customers.length === 0) return { plan: "free" };
+
+  const ids = customers.map((c) => c.id).join(",");
+  const sRes = await fetch(
+    `${PADDLE_API_BASE}/subscriptions?customer_id=${encodeURIComponent(ids)}&per_page=100`,
+    { headers }
+  );
+  const sJson = await sRes.json();
+  const subs = sJson.data || [];
+  const active = subs.find((s) => s.status === "active" || s.status === "trialing");
+  if (!active) return { plan: "free" };
+
+  const referralCode = active.discount && active.discount.id ? active.discount.id : "";
+  return { plan: "pro", referralCode };
 }
 
 const app = express();
@@ -148,6 +193,28 @@ async function generateWithRetry(params, maxAttempts = 4) {
 // --- Health check ---
 app.get("/", (req, res) => {
   res.send("Backend is running!");
+});
+
+// --- Plan check: the app calls this to know if the signed-in user is Pro ---
+app.get("/plan", async (req, res) => {
+  try {
+    const authHeader = req.get("Authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!token) return res.status(401).json({ plan: "free" });
+
+    let payload;
+    try {
+      payload = await verifyFirebaseToken(token);
+    } catch {
+      return res.status(401).json({ plan: "free" });
+    }
+
+    const result = await planFromPaddle(payload.email);
+    res.json(result);
+  } catch (e) {
+    console.error("/plan error:", e.message);
+    res.json({ plan: "free" }); // fail safe to free
+  }
 });
 
 // --- Paddle webhook: mark a user Pro after they subscribe / renew ---

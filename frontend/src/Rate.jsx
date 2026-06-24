@@ -10,7 +10,7 @@ import {
   getDoc,
   setDoc,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import ResultCard from "./ResultCard";
 
 const BACKEND_URL =
@@ -115,21 +115,29 @@ function Rate({ user, onUpgrade }) {
   }, []);
 
   async function loadProfile() {
+    // Plan is decided by the backend (it asks Paddle — the source of truth),
+    // so it can't be faked and reflects cancellations.
+    try {
+      const u = auth.currentUser;
+      if (u) {
+        const token = await u.getIdToken();
+        const r = await fetch(BACKEND_URL + "/plan", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const d = await r.json();
+        setPlan(d.plan === "pro" ? "pro" : "free");
+      }
+    } catch (e) {
+      console.log("Could not load plan:", e);
+    }
+    // Free-tier daily usage count stays in Firestore
     try {
       const ref = doc(db, "users", user.uid, "meta", "profile");
       const snap = await getDoc(ref);
       const data = snap.exists() ? snap.data() : {};
-      // Pro = plan is pro AND they've paid within ~35 days (so access lapses
-      // automatically if a subscription stops). No lastChargeAt = manual/test pro.
-      const within35Days =
-        data.lastChargeAt &&
-        Date.now() - data.lastChargeAt < 35 * 24 * 60 * 60 * 1000;
-      const isPro =
-        data.plan === "pro" && (within35Days || !data.lastChargeAt);
-      setPlan(isPro ? "pro" : "free");
       setUsedToday(data.usageDate === todayKey() ? data.usageCount || 0 : 0);
     } catch (e) {
-      console.log("Could not load plan:", e);
+      console.log("Could not load usage:", e);
     }
   }
 
