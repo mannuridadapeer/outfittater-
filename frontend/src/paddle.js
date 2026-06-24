@@ -1,26 +1,47 @@
 import { initializePaddle } from "@paddle/paddle-js";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 // Initialize Paddle once, lazily. Returns null if not configured yet.
 let paddlePromise = null;
+let pendingUserId = null; // who is currently checking out
+
 function getPaddle() {
   if (paddlePromise) return paddlePromise;
   const token = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
   if (!token) return null;
   const environment =
     import.meta.env.VITE_PADDLE_ENV === "production" ? "production" : "sandbox";
-  paddlePromise = initializePaddle({ token, environment });
+
+  paddlePromise = initializePaddle({
+    token,
+    environment,
+    // When Paddle confirms a successful checkout, mark this user as Pro.
+    eventCallback: async (event) => {
+      if (event?.name === "checkout.completed" && pendingUserId) {
+        try {
+          await setDoc(
+            doc(db, "users", pendingUserId, "meta", "profile"),
+            { plan: "pro", proSince: Date.now() },
+            { merge: true }
+          );
+        } catch (e) {
+          console.log("Could not set Pro:", e);
+        }
+      }
+    },
+  });
   return paddlePromise;
 }
 
 // Open the Paddle overlay checkout for a given price.
-// Passes the user's id so the webhook knows who paid, and lets the customer
-// type an influencer's discount code (showAddDiscounts).
 export async function openCheckout({ priceId, email, userId }) {
   const p = getPaddle();
   if (!p || !priceId) {
     alert("Pro is launching soon — payments are being set up! 🎉");
     return;
   }
+  pendingUserId = userId || null;
   const paddle = await p;
   paddle.Checkout.open({
     settings: {
