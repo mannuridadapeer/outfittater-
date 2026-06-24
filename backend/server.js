@@ -73,7 +73,20 @@ async function planFromPaddle(email) {
   if (!active) return { plan: "free" };
 
   const referralCode = active.discount && active.discount.id ? active.discount.id : "";
-  return { plan: "pro", referralCode };
+  return {
+    plan: "pro",
+    referralCode,
+    status: active.status,
+    interval:
+      active.billing_cycle && active.billing_cycle.interval
+        ? active.billing_cycle.interval
+        : "",
+    nextBilledAt: active.next_billed_at || null,
+    cancelAt:
+      active.scheduled_change && active.scheduled_change.action === "cancel"
+        ? active.scheduled_change.effective_at
+        : null,
+  };
 }
 
 const app = express();

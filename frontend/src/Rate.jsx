@@ -29,6 +29,19 @@ const PERSONAS = [
 // How many ratings a free user gets per day
 const FREE_DAILY_LIMIT = 3;
 
+function formatDay(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
 function todayKey() {
   const d = new Date();
   return (
@@ -104,6 +117,8 @@ function Rate({ user, onUpgrade }) {
   const [persona, setPersona] = useState("Honest");
   const [plan, setPlan] = useState("free");
   const [usedToday, setUsedToday] = useState(0);
+  const [planInfo, setPlanInfo] = useState(null);
+  const [showPlanInfo, setShowPlanInfo] = useState(false);
 
   // Tracks which occasions we've already saved for the CURRENT photo,
   // so switching occasions doesn't create duplicate history entries.
@@ -126,6 +141,7 @@ function Rate({ user, onUpgrade }) {
         });
         const d = await r.json();
         setPlan(d.plan === "pro" ? "pro" : "free");
+        setPlanInfo(d);
       }
     } catch (e) {
       console.log("Could not load plan:", e);
@@ -313,16 +329,47 @@ function Rate({ user, onUpgrade }) {
       </div>
 
       {plan === "pro" ? (
-        <div className="mb-4 flex items-center justify-between bg-[#f4ead9] rounded-2xl px-4 py-2.5">
-          <span className="text-sm font-semibold text-[#a9823a]">
-            ✨ Pro · unlimited
-          </span>
-          <button
-            onClick={openPortal}
-            className="text-sm font-semibold text-[#a9823a] hover:underline"
-          >
-            Manage
-          </button>
+        <div className="mb-4">
+          <div className="flex items-center justify-between bg-[#f4ead9] rounded-2xl px-4 py-2.5">
+            <span className="text-sm font-semibold text-[#a9823a]">
+              ✨ Pro · unlimited
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowPlanInfo((v) => !v)}
+                aria-label="Plan details"
+                className="w-6 h-6 rounded-full border border-[#caa24e] text-[#a9823a] text-xs font-bold flex items-center justify-center hover:bg-[#ece0c8] transition"
+              >
+                i
+              </button>
+              <button
+                onClick={openPortal}
+                className="text-sm font-semibold text-[#a9823a] hover:underline"
+              >
+                Manage
+              </button>
+            </div>
+          </div>
+
+          {showPlanInfo && (
+            <div className="fade-in mt-2 glass-card rounded-2xl p-4 text-sm">
+              <p className="font-semibold text-[#3d3220] mb-1">Your Pro plan</p>
+              <p className="text-[#9b8a68]">
+                {planInfo?.interval === "year"
+                  ? "Yearly — $49.99 / year"
+                  : "Monthly — $9.99 / month"}
+              </p>
+              {planInfo?.cancelAt ? (
+                <p className="text-[#a8506a] mt-1">
+                  Cancelled — you keep Pro until {formatDay(planInfo.cancelAt)}.
+                </p>
+              ) : planInfo?.nextBilledAt ? (
+                <p className="text-[#9b8a68] mt-1">
+                  Renews on {formatDay(planInfo.nextBilledAt)}.
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
       ) : (
         <div className="mb-4 flex items-center justify-between bg-[#f8f1e6] rounded-2xl px-4 py-2.5">
