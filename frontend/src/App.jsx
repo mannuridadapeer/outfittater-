@@ -13,7 +13,10 @@ function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [showLogin, setShowLogin] = useState(false); // welcome -> login
-  const [screen, setScreen] = useState("rate"); // "rate" or "history"
+  const [screen, setScreen] = useState(() => {
+    const h = window.location.hash.replace("#", "");
+    return ["rate", "history", "stats"].includes(h) ? h : "rate";
+  });
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
@@ -23,6 +26,21 @@ function App() {
     });
     return unsubscribe;
   }, []);
+
+  // Keep the tab in sync with the URL hash (so refresh + back/forward work)
+  useEffect(() => {
+    function onHash() {
+      const h = window.location.hash.replace("#", "");
+      setScreen(["rate", "history", "stats"].includes(h) ? h : "rate");
+    }
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  function selectScreen(s) {
+    setScreen(s);
+    if (window.location.hash !== "#" + s) window.location.hash = s;
+  }
 
   // First load: checking whether you're already signed in
   if (!authReady) {
@@ -70,17 +88,17 @@ function App() {
       </header>
 
       <nav className="flex gap-2 bg-[#f4ead9] p-1.5 rounded-full mb-6">
-        <button onClick={() => setScreen("rate")} className={tabClass(screen === "rate")}>
+        <button onClick={() => selectScreen("rate")} className={tabClass(screen === "rate")}>
           Rate
         </button>
         <button
-          onClick={() => setScreen("history")}
+          onClick={() => selectScreen("history")}
           className={tabClass(screen === "history")}
         >
           History
         </button>
         <button
-          onClick={() => setScreen("stats")}
+          onClick={() => selectScreen("stats")}
           className={tabClass(screen === "stats")}
         >
           Stats
@@ -93,7 +111,7 @@ function App() {
           <Rate user={user} onUpgrade={() => setShowPaywall(true)} />
         )}
         {screen === "history" && (
-          <History user={user} onRate={() => setScreen("rate")} />
+          <History user={user} onRate={() => selectScreen("rate")} />
         )}
         {screen === "stats" && <Stats user={user} />}
       </main>
