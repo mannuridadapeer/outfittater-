@@ -97,12 +97,14 @@ function App() {
         {screen === "stats" && <Stats user={user} />}
       </main>
 
-      <button
-        onClick={shareApp}
-        className="btn-soft w-full py-3 rounded-2xl font-semibold mt-8"
-      >
-        📤 Invite a friend
-      </button>
+      {screen === "stats" && (
+        <button
+          onClick={shareApp}
+          className="btn-soft w-full py-3 rounded-2xl font-semibold mt-8"
+        >
+          📤 Invite a friend
+        </button>
+      )}
 
       {showPaywall && (
         <Paywall onClose={() => setShowPaywall(false)} user={user} />
