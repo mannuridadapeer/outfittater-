@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import ResultCard from "./ResultCard";
+import { canInstall, onInstallChange, promptInstall } from "./installPrompt";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -120,6 +121,7 @@ function Rate({ user, onUpgrade }) {
   const [usedToday, setUsedToday] = useState(0);
   const [planInfo, setPlanInfo] = useState(null);
   const [showPlanInfo, setShowPlanInfo] = useState(false);
+  const [installable, setInstallable] = useState(canInstall());
 
   // Tracks which occasions we've already saved for the CURRENT photo,
   // so switching occasions doesn't create duplicate history entries.
@@ -128,6 +130,10 @@ function Rate({ user, onUpgrade }) {
   useEffect(() => {
     loadStreak();
     loadProfile();
+  }, []);
+
+  useEffect(() => {
+    return onInstallChange(() => setInstallable(canInstall()));
   }, []);
 
   async function loadProfile() {
@@ -334,6 +340,14 @@ function Rate({ user, onUpgrade }) {
           <div className="px-4 py-2 rounded-full text-sm font-semibold bg-[#f8f1e6] text-[#a9823a]">
             🏆 Best: {bestScore}/10
           </div>
+        )}
+        {installable && (
+          <button
+            onClick={promptInstall}
+            className="px-4 py-2 rounded-full text-sm font-semibold bg-[#f4ead9] text-[#a9823a]"
+          >
+            📲 Install app
+          </button>
         )}
       </div>
 
