@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import confetti from "canvas-confetti";
-import { shareResult } from "./share";
+import { shareResult, saveCardImage, copyResultText } from "./share";
 
 // A short friendly verdict shown next to the score ring
 export function verdict(score) {
@@ -139,6 +139,20 @@ function ResultCard({ result, imageDataUrl, occasion, persona }) {
       >
         Share my result
       </button>
+      <div className="flex gap-3 mt-3">
+        <button
+          onClick={() => saveCardImage(cardRef.current)}
+          className="btn-soft flex-1 py-2.5 rounded-2xl font-semibold text-sm"
+        >
+          💾 Save image
+        </button>
+        <button
+          onClick={() => copyResultText(result)}
+          className="btn-soft flex-1 py-2.5 rounded-2xl font-semibold text-sm"
+        >
+          📋 Copy text
+        </button>
+      </div>
     </div>
   );
 }

@@ -113,6 +113,7 @@ function Rate({ user, onUpgrade }) {
   const [loadingMsg, setLoadingMsg] = useState("Analyzing your fit…");
   const [streak, setStreak] = useState(0);
   const [todayRating, setTodayRating] = useState(null);
+  const [bestScore, setBestScore] = useState(0);
   const [occasion, setOccasion] = useState("Casual");
   const [persona, setPersona] = useState("Honest");
   const [plan, setPlan] = useState("free");
@@ -166,13 +167,16 @@ function Rate({ user, onUpgrade }) {
       const snap = await getDocs(q);
       const dateKeys = [];
       let today = null;
+      let best = 0;
       snap.forEach((docSnap) => {
         const d = docSnap.data();
         if (d.dateKey) dateKeys.push(d.dateKey);
         if (d.dateKey === todayKey() && !today) today = d;
+        if ((d.overallScore || 0) > best) best = d.overallScore;
       });
       setStreak(computeStreak(dateKeys));
       setTodayRating(today);
+      setBestScore(best);
     } catch (e) {
       console.log("Could not load streak:", e);
     }
@@ -326,6 +330,11 @@ function Rate({ user, onUpgrade }) {
             ⭐ Outfit of the Day: {todayRating.overallScore}/10
           </div>
         )}
+        {bestScore > 0 && (
+          <div className="px-4 py-2 rounded-full text-sm font-semibold bg-[#f8f1e6] text-[#a9823a]">
+            🏆 Best: {bestScore}/10
+          </div>
+        )}
       </div>
 
       {plan === "pro" ? (
@@ -415,24 +424,40 @@ function Rate({ user, onUpgrade }) {
             {OCCASIONS.map((o) => occasionPill(o, () => setOccasion(o)))}
           </div>
 
-          <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
-            <input type="file" accept="image/*" onChange={handleFileChange} hidden />
-            {image ? (
-              <>
-                <img
-                  src={image}
-                  alt="your outfit"
-                  className="w-full max-h-[360px] object-contain rounded-3xl"
-                />
-                <p className="text-xs text-[#9b8a68] mt-3">Tap to change photo</p>
-              </>
-            ) : (
-              <div className="text-[#9b8a68] font-medium py-12">
-                <div className="text-4xl mb-2">📷</div>
-                Tap to choose a photo
+          {image ? (
+            <label className="block cursor-pointer rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-4 mb-4 text-center transition hover:border-[#caa24e]">
+              <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+              <img
+                src={image}
+                alt="your outfit"
+                className="w-full max-h-[360px] object-contain rounded-3xl"
+              />
+              <p className="text-xs text-[#9b8a68] mt-3">Tap to change photo</p>
+            </label>
+          ) : (
+            <div className="rounded-[32px] border-2 border-dashed border-[#dcc9a0] glass-soft p-6 mb-4 text-center">
+              <div className="text-4xl mb-3">📷</div>
+              <p className="text-[#9b8a68] font-medium mb-4">
+                Add a photo of your outfit
+              </p>
+              <div className="flex gap-3">
+                <label className="btn-gold flex-1 py-3 rounded-2xl font-semibold cursor-pointer text-center">
+                  Take photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileChange}
+                    hidden
+                  />
+                </label>
+                <label className="btn-soft flex-1 py-3 rounded-2xl font-semibold cursor-pointer text-center">
+                  Upload
+                  <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+                </label>
               </div>
-            )}
-          </label>
+            </div>
+          )}
 
           <button
             onClick={handleRate}

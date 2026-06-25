@@ -7,6 +7,7 @@ import Rate from "./Rate";
 import History from "./History";
 import Stats from "./Stats";
 import Paywall from "./Paywall";
+import { shareApp } from "./share";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -95,6 +96,13 @@ function App() {
         )}
         {screen === "stats" && <Stats user={user} />}
       </main>
+
+      <button
+        onClick={shareApp}
+        className="btn-soft w-full py-3 rounded-2xl font-semibold mt-8"
+      >
+        📤 Invite a friend
+      </button>
 
       {showPaywall && (
         <Paywall onClose={() => setShowPaywall(false)} user={user} />

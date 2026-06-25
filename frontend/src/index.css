@@ -99,3 +99,10 @@
   50% { opacity: 1; }
 }
 .pulse { animation: luxe-pulse 1.4s ease-in-out infinite; }
+
+/* Gentle floating bob (empty-state emojis) */
+@keyframes luxe-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+.float { animation: luxe-float 2.6s ease-in-out infinite; }
