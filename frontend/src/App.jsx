@@ -52,8 +52,9 @@ function App() {
   return (
     <div className="max-w-md mx-auto px-5 pb-16">
       <header className="flex items-center justify-between py-6">
-        <div className="text-xl font-extrabold text-[#a9823a]">
-          👗 Rate My Outfit
+        <div className="flex items-center gap-2">
+          <img src="/favicon.svg" alt="Slayrate logo" className="w-8 h-8 rounded-[10px]" />
+          <span className="text-xl font-extrabold text-[#a9823a]">Slayrate</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-[#9b8a68] max-w-[120px] truncate">

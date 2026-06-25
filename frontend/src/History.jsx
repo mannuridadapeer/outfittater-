@@ -212,11 +212,14 @@ function History({ user, onRate }) {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5 shrink-0 text-center">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => toggleFavorite(r)}
                   aria-label="Favorite"
-                  className="text-lg leading-none"
+                  className={
+                    "w-9 h-9 rounded-full flex items-center justify-center text-base transition " +
+                    (r.favorite ? "bg-[#f4ead9]" : "bg-[#f8f1e6] hover:bg-[#ece0c8]")
+                  }
                 >
                   {r.favorite ? "⭐" : "☆"}
                 </button>
@@ -225,14 +228,14 @@ function History({ user, onRate }) {
                     shareResult({ result: r, imageDataUrl: r.thumbnail })
                   }
                   aria-label="Share"
-                  className="text-base leading-none"
+                  className="w-9 h-9 rounded-full bg-[#f8f1e6] hover:bg-[#ece0c8] flex items-center justify-center text-sm transition"
                 >
                   📤
                 </button>
                 <button
                   onClick={() => remove(r)}
                   aria-label="Delete"
-                  className="text-base leading-none"
+                  className="w-9 h-9 rounded-full bg-[#f8f1e6] hover:bg-[#ece0c8] flex items-center justify-center text-sm transition"
                 >
                   🗑️
                 </button>
