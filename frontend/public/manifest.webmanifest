@@ -1,6 +1,6 @@
 {
-  "name": "Rate My Outfit",
-  "short_name": "Outfit",
+  "name": "Slayrate",
+  "short_name": "Slayrate",
   "description": "Get your outfit scored by AI in seconds.",
   "start_url": "/",
   "scope": "/",
